@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monster Builder — bryl monsteret frem</title>
+<link rel="icon" type="image/png" href="monster.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#0a0f0d; --ink:#eafff6; --muted:#8fae9f; --mint:#52f0b0; --glow:#52f0b0; --line:#234034; }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; min-height:100vh; color:var(--ink); font-family:"Nunito",sans-serif;
+    background:#070b09;
+    display:flex; flex-direction:column; align-items:center; padding:26px 16px 44px;
+  }
+
+  /* ---------- monster-hule baggrund ---------- */
+  #cave{ position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;
+    background:
+      radial-gradient(620px 420px at 50% 88%, rgba(255,150,60,.22) 0%, transparent 62%),
+      radial-gradient(900px 600px at 50% 38%, #14302a 0%, transparent 60%),
+      radial-gradient(700px 700px at 12% 8%, #1a2740 0%, transparent 55%),
+      radial-gradient(700px 700px at 88% 12%, #261a3a 0%, transparent 55%),
+      radial-gradient(1200px 800px at 50% 120%, #0c1a16 0%, #070b09 70%); }
+  #cave::after{ content:""; position:absolute; inset:0;
+    background:radial-gradient(120% 90% at 50% 50%, transparent 52%, rgba(0,0,0,.6) 100%); }
+  .stal{ position:absolute; top:0; left:0; right:0; height:160px;
+    background:linear-gradient(180deg,#1d2b25 0%,#0e1814 100%);
+    clip-path:polygon(0 0,100% 0,100% 26%,95% 78%,90% 34%,84% 96%,77% 40%,70% 70%,62% 30%,55% 88%,48% 38%,41% 64%,34% 30%,27% 100%,20% 42%,13% 72%,6% 32%,0 30%);
+    filter:drop-shadow(0 6px 6px rgba(0,0,0,.4)); }
+  .ground{ position:absolute; bottom:0; left:0; right:0; height:150px;
+    background:linear-gradient(0deg,#101c17 0%,#16271f 100%);
+    clip-path:polygon(0 100%,100% 100%,100% 44%,92% 70%,85% 40%,76% 64%,66% 36%,58% 60%,50% 32%,42% 58%,33% 38%,24% 66%,15% 40%,8% 70%,0 46%); }
+  .crystal{ position:absolute; width:26px;
+    background:linear-gradient(160deg,rgba(255,255,255,.85),var(--cc,#52f0b0) 45%,rgba(0,0,0,.2));
+    transform:rotate(var(--cr,8deg)); box-shadow:0 0 22px 4px var(--cc,#52f0b0);
+    clip-path:polygon(50% 0,100% 30%,80% 100%,20% 100%,0 30%); opacity:.9;
+    animation:cpulse 3.4s ease-in-out infinite; }
+  @keyframes cpulse{ 0%,100%{ filter:brightness(.8); } 50%{ filter:brightness(1.35); } }
+  .spore{ position:absolute; width:6px; height:6px; border-radius:50%;
+    background:var(--cc,#7ef0c0); box-shadow:0 0 12px 3px var(--cc,#7ef0c0);
+    opacity:0; animation:float 9s linear infinite; }
+  @keyframes float{ 0%{ transform:translateY(0) scale(.6); opacity:0; }
+    15%{ opacity:.8; } 85%{ opacity:.7; } 100%{ transform:translateY(-260px) scale(1); opacity:0; } }
+  h1{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:clamp(30px,5.5vw,48px);
+      margin:0 0 4px; text-align:center; letter-spacing:.5px; color:#eafff6;
+      text-shadow:0 0 18px rgba(82,240,176,.45), 0 3px 0 rgba(0,0,0,.4); }
+  h1 .pop{ color:var(--mint); text-shadow:0 0 22px rgba(82,240,176,.8); }
+  .tag{ color:var(--muted); margin:0 0 18px; text-align:center; max-width:560px; font-size:15px; }
+
+  #camPanel{ margin-bottom:16px; }
+  .panel{ background:#271b44; border:2px solid var(--line); border-radius:24px; padding:14px;
+          box-shadow:0 12px 0 rgba(0,0,0,.2); }
+  .plabel{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; text-transform:uppercase;
+           letter-spacing:1.5px; color:var(--muted); margin:2px 4px 10px; text-align:center; }
+  .cam-frame{ width:300px; height:225px; border-radius:16px; overflow:hidden; background:#0e0a1a;
+              border:3px solid var(--mint); animation:scanpulse 1s ease-in-out infinite; }
+  @keyframes scanpulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(75,227,176,.4); } 50%{ box-shadow:0 0 0 7px rgba(75,227,176,0); } }
+  video{ width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+
+  #magic{ position:relative; width:100%; max-width:700px; aspect-ratio:700/520; border-radius:26px;
+          overflow:hidden; background:radial-gradient(120% 120% at 50% 18%, #16271f 0%, #0a120e 70%);
+          border:3px solid #2b4a3b;
+          box-shadow:0 14px 0 rgba(0,0,0,.3), inset 0 0 60px rgba(255,150,60,.12), 0 0 26px rgba(82,240,176,.18); }
+  #magic.full{ position:fixed; inset:0; width:100vw; height:100vh; max-width:none; aspect-ratio:auto;
+               border-radius:0; border:none; box-shadow:none; z-index:50; }
+  #revealBg{ position:absolute; inset:-45%; display:none; filter:saturate(1.15);
+             background:conic-gradient(from 0deg,#ff4d6d,#ffd24d,#4be3b0,#4d9bff,#b14dff,#ff4d6d);
+             animation:spin 8s linear infinite; }
+  #revealBg.on{ display:block; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  canvas#fx{ position:absolute; inset:0; width:100%; height:100%; }
+  #count{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center;
+          justify-content:space-between; gap:2px; pointer-events:none; padding:12px 0 16px; }
+  #count.kick{ animation:countkick .4s ease-out; }
+  @keyframes countkick{ 0%{ transform:scale(1); } 28%{ transform:scale(1.13) translateX(7px) rotate(1deg); }
+                        58%{ transform:scale(.96) translateX(-6px) rotate(-1deg); } 100%{ transform:scale(1); } }
+  #shout{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:clamp(48px,13vw,120px); line-height:.95;
+          color:#fff; -webkit-text-stroke:5px #18122b;
+          text-shadow:5px 5px 0 #ff2e63, -4px 4px 0 #00d2ff, 0 10px 0 rgba(0,0,0,.35);
+          letter-spacing:1px; transform:rotate(-3deg); }
+  #shout.pop{ animation:shoutpop .46s cubic-bezier(.2,1.8,.35,1); }
+  @keyframes shoutpop{ 0%{ transform:rotate(-3deg) scale(.2); opacity:0; }
+                       40%{ transform:rotate(5deg) scale(1.32); opacity:1; }
+                       62%{ transform:rotate(-5deg) scale(.93); }
+                       82%{ transform:rotate(3deg) scale(1.08); }
+                       100%{ transform:rotate(-3deg) scale(1); } }
+  #numwrap{ position:relative; }
+  #bignum{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:clamp(96px,22vw,180px); line-height:.85;
+           background:linear-gradient(180deg,#ff6a6a 0%,#e0101f 52%,#7e0410 100%);
+           -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+           filter:drop-shadow(4px 6px 0 rgba(0,0,0,.4)); }
+  #bignum.pulse{ animation:numpop .65s cubic-bezier(.2,1.7,.4,1); }
+  @keyframes numpop{ 0%{ transform:scale(.3) rotate(-6deg); opacity:0; }
+                     35%{ transform:scale(1.22) rotate(3deg); opacity:1; }
+                     100%{ transform:scale(1) rotate(0); } }
+  .drips{ position:absolute; left:0; right:0; bottom:16%; display:flex; justify-content:space-around; padding:0 14%; }
+  .drips i{ display:block; width:14px; height:16px; background:linear-gradient(180deg,#e01225,#7e0410);
+            border-radius:50% 50% 50% 50%/55% 55% 45% 45%; transform-origin:top center;
+            animation:blooddrip 1.9s ease-in infinite; }
+  .drips i:nth-child(2){ animation-delay:.55s; width:11px; }
+  .drips i:nth-child(3){ animation-delay:1.05s; width:16px; }
+  .drips i:nth-child(4){ animation-delay:.3s; width:10px; }
+  .drips i:nth-child(5){ animation-delay:1.35s; width:13px; }
+  @keyframes blooddrip{
+    0%{ transform:translateY(0) scaleY(.4); opacity:0; }
+    22%{ transform:translateY(6px) scaleY(1.5); opacity:1; }
+    70%{ transform:translateY(58px) scaleY(2.3); opacity:.9; }
+    100%{ transform:translateY(150px) scaleY(1); opacity:0; }
+  }
+
+  #glitch{ position:absolute; inset:0; display:none; pointer-events:none; overflow:hidden; }
+  #glitch.on{ display:block; animation:gshake .06s steps(2) infinite, gflash .78s ease-out 1; }
+  #glitch::before{ content:""; position:absolute; inset:0; mix-blend-mode:screen;
+                   background:repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 2px, transparent 2px 5px);
+                   animation:gslide .12s linear infinite; }
+  #glitch::after{ content:""; position:absolute; inset:0; mix-blend-mode:screen;
+                  background:linear-gradient(90deg,#ff004c66,#00fff066); animation:ghue .1s steps(3) infinite; }
+  @keyframes gshake{ 0%{transform:translate(0,0)} 25%{transform:translate(-7px,4px)} 50%{transform:translate(6px,-5px)} 75%{transform:translate(-4px,-3px)} 100%{transform:translate(5px,4px)} }
+  @keyframes gslide{ to{ transform:translateY(5px); } }
+  @keyframes ghue{ 0%{ filter:hue-rotate(0deg); } 100%{ filter:hue-rotate(200deg); } }
+  @keyframes gflash{ 0%{ background:#fff; } 14%{ background:rgba(255,255,255,.25); } 100%{ background:transparent; } }
+
+  .dots{ display:flex; gap:12px; margin:18px 0 6px; }
+  .dot{ width:16px; height:16px; border-radius:50%; background:#3a2c5e; border:2px solid #5a4690;
+        transition:transform .2s, background .2s; }
+  .dot.on{ background:var(--mint); border-color:var(--mint); transform:scale(1.25); box-shadow:0 0 12px var(--mint); }
+
+  #prompt{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:clamp(18px,3.4vw,24px);
+           text-align:center; min-height:30px; margin:10px 0 4px; }
+  .controls{ display:flex; gap:14px; margin:8px 0 12px; flex-wrap:wrap; justify-content:center; }
+  button{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:20px; color:#eafff5;
+          background:linear-gradient(180deg,#2f5d4a 0%,#1c3a2e 100%);
+          border:2px solid #5fe0a8; border-radius:16px; padding:16px 32px; cursor:pointer;
+          text-shadow:0 0 10px rgba(95,224,168,.7);
+          box-shadow:0 7px 0 #0e201a, 0 0 20px rgba(82,240,176,.5);
+          transition:transform .06s, box-shadow .06s; }
+  button:active{ transform:translateY(5px); box-shadow:0 2px 0 #0e201a, 0 0 14px rgba(82,240,176,.5); }
+  #startBtn{ font-size:24px; padding:18px 44px; }
+  #recBtn, #againBtn{ background:linear-gradient(180deg,#7a3b2a 0%,#4a2118 100%); border-color:#ff9a5c;
+          color:#fff1e8; text-shadow:0 0 10px rgba(255,138,60,.7);
+          box-shadow:0 7px 0 #2a120c, 0 0 20px rgba(255,138,60,.5); }
+  #recBtn{ font-size:24px; padding:18px 40px; }
+  #recBtn:active, #againBtn:active{ box-shadow:0 2px 0 #2a120c, 0 0 14px rgba(255,138,60,.5); }
+  button:disabled{ opacity:.4; cursor:default; transform:none; }
+  #againBtn.float{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:60; }
+  #againBtn.float:active{ transform:translateX(-50%) translateY(5px); }
+  #voice-prompt{
+    position:fixed; bottom:88px; left:50%; transform:translateX(-50%); z-index:65;
+    display:none; align-items:center; gap:12px;
+    background:rgba(6,12,10,.78); border:2px solid var(--mint); border-radius:999px;
+    padding:12px 28px 12px 18px; backdrop-filter:blur(10px);
+    box-shadow:0 0 28px rgba(82,240,176,.45), 0 4px 0 rgba(0,0,0,.3);
+    white-space:nowrap; pointer-events:none; }
+  #voice-prompt.on{ display:flex; animation:vpin .4s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes vpin{ 0%{ transform:translateX(-50%) scale(.5); opacity:0; }
+                   100%{ transform:translateX(-50%) scale(1); opacity:1; } }
+  .mic-wrap{ position:relative; width:36px; height:36px; flex-shrink:0; }
+  .mic-ring{ position:absolute; inset:-4px; border-radius:50%;
+    border:3px solid var(--mint); animation:micpulse 1.4s ease-out infinite; }
+  .mic-ring:nth-child(2){ animation-delay:.7s; }
+  @keyframes micpulse{ 0%{ transform:scale(.9); opacity:.8; }
+                       100%{ transform:scale(1.7); opacity:0; } }
+  .mic-ico{ position:absolute; inset:0; display:flex; align-items:center;
+    justify-content:center; font-size:20px; }
+  .voice-label{ font-family:"Fredoka",sans-serif; font-weight:600;
+    font-size:clamp(16px,3.5vw,26px); color:var(--ink);
+    text-shadow:0 0 12px rgba(82,240,176,.6); }
+  .voice-label strong{ color:var(--mint); font-size:1.18em; }
+  #status{ color:var(--ink); font-weight:700; text-align:center; max-width:620px; font-size:15px; min-height:22px; }
+  .privacy{ margin-top:20px; max-width:640px; text-align:center; color:var(--muted); font-size:13px;
+            line-height:1.6; border-top:1px solid var(--line); padding-top:14px; }
+  .privacy b{ color:var(--mint); }
+  code{ background:#120d22; padding:2px 7px; border-radius:6px; color:var(--mint); font-size:12px; }
+</style>
+</head>
+<body>
+  <div id="cave">
+    <div class="stal"></div>
+    <div class="ground"></div>
+    <div class="crystal" style="left:6%;  bottom:60px; --cc:#52f0b0; --cr:-10deg; height:72px;"></div>
+    <div class="crystal" style="left:13%; bottom:48px; --cc:#39d0ff; --cr:14deg;  height:46px;"></div>
+    <div class="crystal" style="right:8%; bottom:64px; --cc:#c06bff; --cr:9deg;   height:80px;"></div>
+    <div class="crystal" style="right:15%;bottom:46px; --cc:#52f0b0; --cr:-8deg;  height:42px;"></div>
+    <div class="crystal" style="left:50%; top:98px;   --cc:#39d0ff; --cr:184deg; height:52px;"></div>
+    <div class="spore" style="left:20%; bottom:120px; --cc:#7ef0c0; animation-delay:0s;"></div>
+    <div class="spore" style="left:44%; bottom:90px;  --cc:#9ad0ff; animation-delay:2.5s;"></div>
+    <div class="spore" style="left:68%; bottom:130px; --cc:#c8a0ff; animation-delay:5s;"></div>
+    <div class="spore" style="left:82%; bottom:100px; --cc:#7ef0c0; animation-delay:7s;"></div>
+  </div>
+  <h1>Monster <span class="pop">Builder</span></h1>
+  <p class="tag">Scan dit ansigt, og BRYL monsteret frem paa 5 sekunder.</p>
+
+  <div id="camPanel" class="panel" style="display:none">
+    <div class="plabel">Scanner ansigt</div>
+    <div class="cam-frame"><video id="video" playsinline muted></video></div>
+  </div>
+
+  <div id="magic">
+    <div id="revealBg"></div>
+    <canvas id="fx"></canvas>
+    <div id="glitch"></div>
+    <div id="count">
+      <div id="shout"></div>
+      <div id="numwrap">
+        <div id="bignum"></div>
+        <div class="drips"><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="voice-prompt">
+    <div class="mic-wrap">
+      <div class="mic-ring"></div>
+      <div class="mic-ring"></div>
+      <div class="mic-ico">🎤</div>
+    </div>
+    <span class="voice-label">Sig <strong>MONSTER!</strong></span>
+  </div>
+
+  <div id="prompt"></div>
+  <div class="controls">
+    <button id="startBtn">Start</button>
+    <button id="recBtn" style="display:none">Lav lyd</button>
+    <button id="againBtn" style="display:none">Nyt monster</button>
+  </div>
+  <div id="status"></div>
+
+  <p class="privacy">
+    <b>Privatliv:</b> alt koerer i din browser. Hverken billede eller lyd gemmes eller sendes —
+    kun maal (ansigtets form, lydens styrke/tonehoejde). <b>Ingen ansigtsgenkendelse, ingen foelelsesaflaesning.</b>
+    Monsterets bryl er en ny lyd, der laves ud fra dine lyd-maal.<br>
+    Kraever sikker kontekst: start med <code>python3 -m http.server</code> og aabn <code>http://localhost:8000</code>.
+  </p>
+<script type="module" src="app.js"></script>
+</body>
+</html>
