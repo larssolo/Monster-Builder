@@ -31,7 +31,7 @@ const TRANSLATIONS = {
     recBtn:      "Lav lyd",
     againBtn:    "Nyt monster",
     title:       "Monster Builder — bryl monsteret frem",
-    privacy:     `<b>Privatliv:</b> alt koerer i din browser. Hverken billede eller lyd gemmes eller sendes — kun maal (ansigtets form, lydens styrke/tonehoejde). <b>Ingen ansigtsgenkendelse, ingen foelelsesaflaesning.</b> Monsterets bryl er en ny lyd, der laves ud fra dine lyd-maal.<br>Kraever sikker kontekst: start med <code>python3 -m http.server</code> og aabn <code>http://localhost:8000</code>.`
+    privacy:     `<b>Privatliv:</b> alt afvikles i din browser. Hverken billede eller lyd gemmes eller sendes — kun scan af ansigtets form, lydens styrke/tonehoejde. Ingen ansigtsgenkendelse, ingen følelsesaflæsning. Monsterets brøl er en ny lyd, der laves ud fra dine lyd-data.`
   },
   en: {
     words:       ["ROAR!", "SHRIEK!", "GROWL!", "BOO!", "AAAAH!"],
@@ -51,7 +51,7 @@ const TRANSLATIONS = {
     recBtn:      "Make sound",
     againBtn:    "New monster",
     title:       "Monster Builder — brew the monster",
-    privacy:     `<b>Privacy:</b> everything runs in your browser. No image or audio is stored or sent — only measurements (face shape, audio loudness/pitch). <b>No facial recognition, no emotion detection.</b> The monster's roar is a new sound generated from your audio measurements.<br>Requires a secure context: run with <code>python3 -m http.server</code> and open <code>http://localhost:8000</code>.`
+    privacy:     `<b>Privacy:</b> Everything is processed in your browser. Neither images nor audio are stored or transmitted—only a scan of the shape of your face and the volume and pitch of your voice. No facial recognition, no emotion detection. The monster's roar is a new sound generated from your audio data.`
   }
 };
 
