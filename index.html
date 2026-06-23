@@ -175,6 +175,11 @@
             line-height:1.6; border-top:1px solid var(--line); padding-top:14px; }
   .privacy b{ color:var(--mint); }
   code{ background:#120d22; padding:2px 7px; border-radius:6px; color:var(--mint); font-size:12px; }
+  #langBtn{ position:fixed; top:12px; right:14px; z-index:70; font-family:"Fredoka",sans-serif;
+            font-weight:700; font-size:13px; padding:5px 11px; border-radius:10px;
+            background:#1c3a2e; border:1.5px solid #5fe0a8; color:#eafff5; cursor:pointer;
+            box-shadow:0 3px 0 #0e201a; letter-spacing:.5px; }
+  #langBtn:active{ transform:translateY(2px); box-shadow:0 1px 0 #0e201a; }
 </style>
 </head>
 <body>
@@ -192,10 +197,10 @@
     <div class="spore" style="left:82%; bottom:100px; --cc:#7ef0c0; animation-delay:7s;"></div>
   </div>
   <h1>Monster <span class="pop">Builder</span></h1>
-  <p class="tag">Scan dit ansigt, og BRYL monsteret frem paa 5 sekunder.</p>
+  <p id="tagline" class="tag"></p>
 
   <div id="camPanel" class="panel" style="display:none">
-    <div class="plabel">Scanner ansigt</div>
+    <div id="scanLabel" class="plabel"></div>
     <div class="cam-frame"><video id="video" playsinline muted></video></div>
   </div>
 
@@ -218,23 +223,19 @@
       <div class="mic-ring"></div>
       <div class="mic-ico">🎤</div>
     </div>
-    <span class="voice-label">Sig <strong>MONSTER!</strong></span>
+    <span class="voice-label"><span id="voiceWord"></span> <strong>MONSTER!</strong></span>
   </div>
 
   <div id="prompt"></div>
   <div class="controls">
     <button id="startBtn">Start</button>
-    <button id="recBtn" style="display:none">Lav lyd</button>
-    <button id="againBtn" style="display:none">Nyt monster</button>
+    <button id="recBtn" style="display:none"></button>
+    <button id="againBtn" style="display:none"></button>
   </div>
   <div id="status"></div>
 
-  <p class="privacy">
-    <b>Privatliv:</b> alt koerer i din browser. Hverken billede eller lyd gemmes eller sendes —
-    kun maal (ansigtets form, lydens styrke/tonehoejde). <b>Ingen ansigtsgenkendelse, ingen foelelsesaflaesning.</b>
-    Monsterets bryl er en ny lyd, der laves ud fra dine lyd-maal.<br>
-    Kraever sikker kontekst: start med <code>python3 -m http.server</code> og aabn <code>http://localhost:8000</code>.
-  </p>
+  <p id="privacyText" class="privacy"></p>
+  <button id="langBtn"></button>
 <script type="module" src="app.js"></script>
 </body>
 </html>

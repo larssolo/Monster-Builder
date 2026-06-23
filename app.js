@@ -5,13 +5,61 @@
 const CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 const MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
-const SLICES = 5;        // 5 sek -> 5 lyd-skiver -> op til 5 dele
+const SLICES = 5;
 const SLICE_MS = 1000;
 const ROAR_MS = SLICES * SLICE_MS;
-const WORDS = ["BRØL!", "SKRIG!", "GRIIIG!", "BØH-BØH!", "AAAAH!"];
-const SCAN_MS = 3000;    // ansigts-scan
+const SCAN_MS = 3000;
 const GLITCH_MS = 780;
-const GATE = 0.06;       // stoejgraense for "der er lyd"
+const GATE = 0.06;
+
+const TRANSLATIONS = {
+  da: {
+    words:       ["BRØL!", "SKRIG!", "GRIIIG!", "BØH-BØH!", "AAAAH!"],
+    getReady:    "GØR KLAR!",
+    loading:     "Henter model (første gang ~et par sek)...",
+    asking:      "Beder om kamera + mikrofon...",
+    promptStart: "Sig MONSTER! for at starte 👹",
+    error:       (msg) => `Fejl: ${msg}  •  Åbn via http://localhost og tillad kamera + mikrofon.`,
+    holdFace:    "Hold ansigtet stille...",
+    makeSounds:  "LAV LYDE! 🔊",
+    yourMonster: "Dit monster! 🎉",
+    pressStart:  "Tryk paa Start — saa scanner vi dit ansigt.",
+    speechLang:  "da-DK",
+    tagline:     "Scan dit ansigt, og BRYL monsteret frem paa 5 sekunder.",
+    scanLabel:   "Scanner ansigt",
+    sayWord:     "Sig",
+    recBtn:      "Lav lyd",
+    againBtn:    "Nyt monster",
+    title:       "Monster Builder — bryl monsteret frem",
+    privacy:     `<b>Privatliv:</b> alt koerer i din browser. Hverken billede eller lyd gemmes eller sendes — kun maal (ansigtets form, lydens styrke/tonehoejde). <b>Ingen ansigtsgenkendelse, ingen foelelsesaflaesning.</b> Monsterets bryl er en ny lyd, der laves ud fra dine lyd-maal.<br>Kraever sikker kontekst: start med <code>python3 -m http.server</code> og aabn <code>http://localhost:8000</code>.`
+  },
+  en: {
+    words:       ["ROAR!", "SHRIEK!", "GROWL!", "BOO!", "AAAAH!"],
+    getReady:    "GET READY!",
+    loading:     "Loading model (first time ~a few sec)...",
+    asking:      "Asking for camera + microphone...",
+    promptStart: "Say MONSTER! to start 👹",
+    error:       (msg) => `Error: ${msg}  •  Open via http://localhost and allow camera + microphone.`,
+    holdFace:    "Hold your face still...",
+    makeSounds:  "MAKE SOUNDS! 🔊",
+    yourMonster: "Your monster! 🎉",
+    pressStart:  "Press Start — then we scan your face.",
+    speechLang:  "en-US",
+    tagline:     "Scan your face, and ROAR the monster out in 5 seconds.",
+    scanLabel:   "Scanning face",
+    sayWord:     "Say",
+    recBtn:      "Make sound",
+    againBtn:    "New monster",
+    title:       "Monster Builder — brew the monster",
+    privacy:     `<b>Privacy:</b> everything runs in your browser. No image or audio is stored or sent — only measurements (face shape, audio loudness/pitch). <b>No facial recognition, no emotion detection.</b> The monster's roar is a new sound generated from your audio measurements.<br>Requires a secure context: run with <code>python3 -m http.server</code> and open <code>http://localhost:8000</code>.`
+  }
+};
+
+let lang = (() => {
+  const saved = localStorage.getItem("mb-lang");
+  return (saved || navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en";
+})();
+const t = (key) => TRANSLATIONS[lang][key];
 
 const L = {
   faceTop: 10, chin: 152, cheekR: 234, cheekL: 454,
@@ -37,6 +85,7 @@ const startBtn = $("startBtn");
 const recBtn = $("recBtn");
 const againBtn = $("againBtn");
 const voicePrompt = $("voice-prompt");
+const langBtn = $("langBtn");
 
 let W = 700, H = 520;
 
@@ -67,6 +116,19 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const easeOutBack = (x) => { const c = 2.2; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
 function status(m) { statusEl.textContent = m; }
 function setPrompt(m) { promptEl.textContent = m; }
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.title = t("title");
+  $("tagline").textContent = t("tagline");
+  $("scanLabel").textContent = t("scanLabel");
+  $("voiceWord").textContent = t("sayWord");
+  recBtn.textContent = t("recBtn");
+  againBtn.textContent = t("againBtn");
+  $("privacyText").innerHTML = t("privacy");
+  langBtn.textContent = lang === "da" ? "EN" : "DA";
+  if (state === "idle") setPrompt(t("pressStart"));
+}
 
 function setupCanvas() {
   const scale = Math.min(window.devicePixelRatio || 1, 2);
@@ -229,9 +291,9 @@ async function start() {
   startBtn.disabled = true;
   resetData();
   try {
-    status("Henter model (første gang ~et par sek)...");
+    status(t("loading"));
     if (!faceLandmarker) await loadModel();
-    status("Beder om kamera + mikrofon...");
+    status(t("asking"));
     vstream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: 640, height: 480 }, audio: true
     });
@@ -239,10 +301,10 @@ async function start() {
     startBtn.style.display = "none";
     state = "listening";
     startKeywordWatch();
-    setPrompt("Sig MONSTER! for at starte 👹");
+    setPrompt(t("promptStart"));
     status("");
   } catch (e) {
-    status("Fejl: " + e.message + "  •  Åbn via http://localhost og tillad kamera + mikrofon.");
+    status(t("error")(e.message));
     startBtn.disabled = false;
   }
 }
@@ -283,7 +345,7 @@ function startRound() {
   lastVideoTime = -1;
   state = "scanning";
   scanStart = performance.now();
-  setPrompt("Hold ansigtet stille...");
+  setPrompt(t("holdFace"));
   status("");
 }
 
@@ -314,7 +376,7 @@ function getReady() {
   liveLevel = 0;
   countEl.style.display = "flex";
   bignumEl.textContent = "";
-  shoutEl.textContent = "GØR KLAR!";
+  shoutEl.textContent = t("getReady");
   shoutEl.classList.remove("pop"); void shoutEl.offsetWidth; shoutEl.classList.add("pop");
   countEl.classList.remove("kick"); void countEl.offsetWidth; countEl.classList.add("kick");
   setPrompt("");
@@ -336,13 +398,13 @@ function startRoar() {
   tone(660, 0.14, "triangle", 0.2);                  // GO!
   tone(150, ROAR_MS / 1000, "sawtooth", 0.05, 540);  // lav rumlen under det hele
   setPrompt("");
-  status("LAV LYDE! 🔊");
+  status(t("makeSounds"));
 }
 
 function startSlice(i) {
   rec = freshRec();
   liveLevel = 0;
-  shoutEl.textContent = WORDS[i % WORDS.length];
+  const words = t("words"); shoutEl.textContent = words[i % words.length];
   bignumEl.textContent = String(SLICES - i);         // 5,4,3,2,1
   shoutEl.classList.remove("pop"); void shoutEl.offsetWidth; shoutEl.classList.add("pop");
   bignumEl.classList.remove("pulse"); void bignumEl.offsetWidth; bignumEl.classList.add("pulse");
@@ -387,7 +449,7 @@ function startKeywordWatch() {
   if (!SR) return;
   try {
     speechRec = new SR();
-    speechRec.lang = "da-DK";
+    speechRec.lang = t("speechLang");
     speechRec.continuous = true;
     speechRec.interimResults = true;
     speechRec.onresult = (e) => {
@@ -445,7 +507,7 @@ function reveal() {
   }
   roar();
   setPrompt("");
-  status("Dit monster! 🎉");
+  status(t("yourMonster"));
   againBtn.style.display = "";
   againBtn.classList.add("float");
   setTimeout(startKeywordWatch, 1500);
@@ -1904,7 +1966,7 @@ function backToStart() {
   startBtn.style.display = "";
   startBtn.disabled = false;
   startBtn.textContent = "Start";
-  setPrompt("Tryk paa Start — saa scanner vi dit ansigt.");
+  setPrompt(t("pressStart"));
   status("");
 }
 
@@ -1915,5 +1977,10 @@ againBtn.addEventListener("click", () => {
 
 setupCanvas();
 window.addEventListener("resize", () => sizeStage(state === "reveal"));
-setPrompt("Tryk paa Start — saa scanner vi dit ansigt.");
+langBtn.addEventListener("click", () => {
+  lang = lang === "da" ? "en" : "da";
+  localStorage.setItem("mb-lang", lang);
+  applyLang();
+});
+applyLang();
 requestAnimationFrame(mainLoop);
