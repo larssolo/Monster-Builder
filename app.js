@@ -45,7 +45,7 @@ const TRANSLATIONS = {
     yourMonster: "Your monster! 🎉",
     pressStart:  "Press Start, and we'll scan your face.",
     speechLang:  "en-US",
-    tagline:     "Scan your face and scream as loud as you can for 5 seconds—and you've created a monster",
+    tagline:     "Scan your face and scream as loud as you can for 5 seconds—<br>and you've created a monster",
     scanLabel:   "Scanning face",
     sayWord:     "Say",
     recBtn:      "Make sound",
@@ -120,7 +120,7 @@ function setPrompt(m) { promptEl.textContent = m; }
 function applyLang() {
   document.documentElement.lang = lang;
   document.title = t("title");
-  $("tagline").textContent = t("tagline");
+  $("tagline").innerHTML = t("tagline");
   $("scanLabel").textContent = t("scanLabel");
   $("voiceWord").textContent = t("sayWord");
   recBtn.textContent = t("recBtn");
