@@ -4,110 +4,107 @@
 
 ---
 
-### 🎤 Scan dit ansigt · Brøl i 5 sekunder · Født et monster
 ### 🎤 Scan your face · Scream for 5 seconds · Birth a monster
 
-[![Spil nu](https://img.shields.io/badge/▶%20SPIL%20NU-monster--builder-7ef060?style=for-the-badge&logo=google-chrome&logoColor=black)](https://monster-builder-larssolo.vercel.app)
+[![Play Now](https://img.shields.io/badge/▶%20PLAY%20NOW-monster--builder-7ef060?style=for-the-badge&logo=google-chrome&logoColor=black)](https://monster-builder-larssolo.vercel.app)
 &nbsp;
-[![Dansk / English](https://img.shields.io/badge/🌍-Dansk%20%7C%20English-9ad0ff?style=for-the-badge)](https://monster-builder-larssolo.vercel.app)
+[![Language](https://img.shields.io/badge/🌍-Danish%20%7C%20English-9ad0ff?style=for-the-badge)](https://monster-builder-larssolo.vercel.app)
 &nbsp;
-[![Ingen installation](https://img.shields.io/badge/📦%20Install-ingen-ff2e63?style=for-the-badge)](https://monster-builder-larssolo.vercel.app)
+[![No install](https://img.shields.io/badge/📦%20Install-none-ff2e63?style=for-the-badge)](https://monster-builder-larssolo.vercel.app)
 
 </div>
 
 ---
 
-## 🎮 Sådan spiller du / How to play
+## 🎮 How to play
 
 <div align="center">
 
-| | DA | EN |
-|:--:|:--|:--|
-| **1** | Klik på Monster Builder–logoet | Click the Monster Builder logo |
-| **2** | Hold dit ansigt stille mens det scannes | Hold your face still while it's scanned |
-| **3** | **RÅB · SKRIG · BRØL** i 5 sekunder 🔊 | **ROAR · SCREAM · ROAR** for 5 seconds 🔊 |
-| **4** | Se dit monster blive født med et glitch-reveal 👹 | Watch your monster be born with a glitch-reveal 👹 |
-| **5** | Sig **MONSTER!** for at spille igen | Say **MONSTER!** to play again |
+| | |
+|:--:|:--|
+| **1** | Click the Monster Builder logo |
+| **2** | Hold your face still while it's scanned |
+| **3** | **ROAR · SCREAM · ROAR** for 5 seconds 🔊 |
+| **4** | Watch your monster be born with a glitch-reveal 👹 |
+| **5** | Say **MONSTER!** to play again |
 
 </div>
 
 ---
 
-## 👾 Mød monsterkassen / Meet the monster roster
+## 👾 Meet the monster roster
 
 ```
-  BLOB              FLERHOVEDET         BLÆKSPRUTTE
+  BLOB              MULTI-HEAD          TENTACLE
   ╭━━━━━╮           ╭╮   ╭╮             ╭━━━━━╮
   │ ◉ ◉ │          (◉) (◉)(◉)          │ ◉ ◉ │
   │  ▽  │           ╰━━━━━╯            ╰━━━━━╯
   ╰~~~~~╯          ╭━━━━━━━╮         ∫∫∫│││∫∫∫
   ░░░░░░░░         │ ▽▽▽▽▽ │          ∫∫∫∫∫∫∫∫
 
-  ALIEN             DRAGE               ØJE-MONSTER
+  ALIEN             DRAGON              EYE MONSTER
    ∧___∧           ╱▔▔╲╱▔▔╲            ╭━━━━━╮
   (⊙   ⊙)        ╱  ◉  ◉  ╲         ╭──│◎◎◎◎│──╮
    ╰━▽━╯        ╱____________╲        ╰──╰━━━━╯──╯
    ╱┃┃┃╲        ▓▓▓▓▓▓▓▓▓▓▓▓▓       ░░░░░░░░░░░░
 ```
 
-**18 unikke arketyper:** Blob · Flerhovedet · Blæksprutte · Bæst · Fisk · Fugl · Orm · Alien · Krabbe · Drage · Øjemonster · Gelé · Virus · Bakterie · Slange · Skorpion · Dino · Amøbe
+**18 unique archetypes:** Blob · Multi-head · Tentacle · Beast · Fish · Bird · Worm · Alien · Crab · Dragon · Eye Monster · Jelly · Virus · Bacteria · Snake · Scorpion · Dino · Amoeba
 
 ---
 
 ## ✨ Features
 
-- 🎭 **Ansigt → Monster** — MediaPipe scanner dit ansigts form og bruger det som DNA til monsteret
-- 🔊 **Lyd → Personlighed** — Din stemmes styrke, tonehøjde og rytme former monsterets udseende
-- 🌍 **Dansk + Engelsk** — Registrerer automatisk dit sprogs og skifter — eller tryk 🌍
-- 👆 **Ét klik** — Tryk på logoet, resten sker af sig selv
-- 🔒 **100% privat** — Ingen data forlader din browser. Nogensinde.
-- 📱 **Ingen installation** — Åbn i Chrome/Edge og spil
+- 🎭 **Face → Monster** — MediaPipe scans your face shape and uses it as monster DNA
+- 🔊 **Voice → Personality** — Your voice's volume, pitch and rhythm shape the monster's look
+- 🌍 **Danish + English** — Auto-detects your browser language, or tap 🌍 to switch
+- 👆 **One click** — Tap the logo, everything else happens by itself
+- 🔒 **100% private** — No data ever leaves your browser
+- 📱 **No install** — Open in Chrome or Edge and play
 
 ---
 
-## 🛠 Teknik
+## 🛠 Tech stack
 
-| Komponent | Teknologi |
+| Component | Technology |
 |:--|:--|
-| Ansigts-scan | MediaPipe FaceLandmarker (on-device WASM) |
-| Lyd-analyse | Web Audio API (RMS · spectral centroid · onsets) |
-| Stemme-genkendelse | Web Speech API (`da-DK` / `en-US`) |
-| Monster-tegning | HTML Canvas 2D + goo-filter (`blur + contrast`) |
-| Reveal-effekt | SVG conic-gradient + CSS glitch-animation |
-| Hover-effekter | 3 tilfældige: slime-wobble · elektrisk glitch · monster-puls |
-| Deploy | GitHub → Vercel (auto) |
-| Afhængigheder | **Ingen** — én HTML + én JS-fil |
+| Face scanning | MediaPipe FaceLandmarker (on-device WASM) |
+| Audio analysis | Web Audio API (RMS · spectral centroid · onsets) |
+| Voice recognition | Web Speech API (`en-US` / `da-DK`) |
+| Monster rendering | HTML Canvas 2D + goo-filter (`blur + contrast`) |
+| Reveal effect | SVG conic-gradient + CSS glitch animation |
+| Hover effects | 3 random: slime-wobble · electric glitch · monster pulse |
+| Deployment | GitHub → Vercel (auto) |
+| Dependencies | **None** — one HTML file + one JS file |
 
 ---
 
-## 🔒 Privatliv / Privacy
+## 🔒 Privacy
 
-> **DA:** Alt afvikles i din browser. Hverken billede eller lyd gemmes eller sendes — kun geometriske mål bruges (ansigtets form, lydens styrke og tonehøjde). Ingen ansigtsgenkendelse, ingen følelsesaflæsning.
->
-> **EN:** Everything runs in your browser. No image or audio is stored or transmitted — only geometric measurements are used (face shape, volume and pitch). No facial recognition, no emotion detection.
+> Everything runs in your browser. No image or audio is stored or transmitted — only geometric measurements are used (face shape, volume and pitch). No facial recognition, no emotion detection. The monster's roar is a new sound generated from your audio data.
 
 ---
 
-## 🚀 Kør lokalt / Run locally
+## 🚀 Run locally
 
 ```bash
 git clone https://github.com/larssolo/Monster-Builder.git
 cd Monster-Builder
 python3 -m http.server 8000
-# Åbn http://localhost:8000 i Chrome
+# Open http://localhost:8000 in Chrome
 ```
 
-> Kræver **Chrome** eller **Edge** (Web Speech API virker ikke i Firefox/Safari)
+> Requires **Chrome** or **Edge** — Web Speech API is not supported in Firefox or Safari
 
 ---
 
-## 📁 Projektstruktur
+## 📁 Project structure
 
 ```
 Monster-Builder/
-├── index.html                 ← HTML + CSS (layout, animationer, fonte)
-├── app.js                     ← Alt JavaScript (logik, canvas, tale, lyd)
-├── monster-builder-splash.png ← Splash-logo med slime-effekt
+├── index.html                 ← HTML + CSS (layout, animations, fonts)
+├── app.js                     ← All JavaScript (logic, canvas, speech, audio)
+├── monster-builder-splash.png ← Splash logo with slime effect
 ├── monster.png                ← Favicon
 └── README.md
 ```
@@ -116,7 +113,7 @@ Monster-Builder/
 
 <div align="center">
 
-Lavet med 👹 brøl og ❤️ kærlighed
+Made with 👹 roars and ❤️ love
 
 **[larssolo](https://github.com/larssolo)** · Powered by MediaPipe + Web APIs + Canvas
 
