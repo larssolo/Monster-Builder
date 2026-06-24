@@ -14,7 +14,7 @@ const GATE = 0.06;
 
 const TRANSLATIONS = {
   da: {
-    words:       ["BRØL!", "SKRIG!", "GRIIIG!", "BØH-BØH!", "AAAAH!"],
+    words:       ["RÅB!", "SKRIG!", "BRØL!", "SKRIG!"],
     getReady:    "GØR KLAR!",
     loading:     "Henter model (første gang ~et par sek)...",
     asking:      "Beder om kamera + mikrofon...",
@@ -34,7 +34,7 @@ const TRANSLATIONS = {
     privacy:     `<b>Privatliv:</b> alt afvikles i din browser. Hverken billede eller lyd gemmes eller sendes — kun scan af ansigtets form, lydens styrke/tonehoejde. Ingen ansigtsgenkendelse, ingen følelsesaflæsning. Monsterets brøl er en ny lyd, der laves ud fra dine lyd-data.`
   },
   en: {
-    words:       ["ROAR!", "SHRIEK!", "GROWL!", "BOO!", "AAAAH!"],
+    words:       ["ROAR!", "SCREAM!", "ROAR!", "SCREAM!"],
     getReady:    "GET READY!",
     loading:     "Loading model (first time ~a few sec)...",
     asking:      "Asking for camera + microphone...",
