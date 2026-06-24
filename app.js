@@ -2049,6 +2049,12 @@ langBtn.addEventListener("click", () => {
   applyLang();
 });
 splashImg.addEventListener("click", start);
+const SPLASH_FX = ["splash-fx-slime","splash-fx-glitch","splash-fx-pulse"];
+splashImg.addEventListener("mouseenter", () => {
+  splashImg.classList.remove(...SPLASH_FX);
+  splashImg.classList.add(SPLASH_FX[Math.floor(Math.random() * SPLASH_FX.length)]);
+});
+splashImg.addEventListener("mouseleave", () => splashImg.classList.remove(...SPLASH_FX));
 splashImg.style.display = "block";
 applyLang();
 requestAnimationFrame(mainLoop);

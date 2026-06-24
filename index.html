@@ -178,7 +178,37 @@
              z-index:5; margin:0; background:rgba(6,10,8,.85); backdrop-filter:blur(6px); }
   .cam-frame{ width:240px; height:180px; }
   #splashImg{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain;
-              cursor:pointer; z-index:3; display:none; }
+              cursor:pointer; z-index:3; display:none;
+              transform-origin:center center; transition:filter .15s; }
+
+  @keyframes splashSlime{
+    0%,100%{ transform:rotate(0deg) scale(1);      filter:drop-shadow(0 0 10px #7ef060); }
+    20%    { transform:rotate(-3deg) scale(1.05);  filter:drop-shadow(0 0 24px #7ef060) drop-shadow(0 0 48px #3adb00); }
+    40%    { transform:rotate(3deg) scale(1.07);   filter:drop-shadow(0 0 16px #7ef060); }
+    60%    { transform:rotate(-2deg) scale(1.04);  filter:drop-shadow(0 0 28px #7ef060) drop-shadow(0 0 56px #3adb00); }
+    80%    { transform:rotate(2deg) scale(1.06);   filter:drop-shadow(0 0 12px #7ef060); }
+  }
+  @keyframes splashGlitch{
+    0%,100%{ transform:translate(0);          filter:hue-rotate(0deg)   brightness(1); }
+    10%    { transform:translate(-5px,2px);   filter:hue-rotate(90deg)  brightness(1.6); }
+    20%    { transform:translate(5px,-2px);   filter:hue-rotate(200deg) brightness(0.8); }
+    30%    { transform:translate(-3px,5px);   filter:hue-rotate(300deg) brightness(1.4); }
+    40%    { transform:translate(4px,-3px);   filter:hue-rotate(50deg)  brightness(1.7); }
+    50%    { transform:translate(-4px,1px);   filter:hue-rotate(150deg) brightness(0.9); }
+    60%    { transform:translate(3px,-4px);   filter:hue-rotate(250deg) brightness(1.5); }
+    70%    { transform:translate(-2px,4px);   filter:hue-rotate(320deg) brightness(1.2); }
+    80%    { transform:translate(2px,-2px);   filter:hue-rotate(70deg)  brightness(1.8); }
+    90%    { transform:translate(-3px,3px);   filter:hue-rotate(160deg) brightness(0.75); }
+  }
+  @keyframes splashPulse{
+    0%,100%{ transform:scale(1);    filter:drop-shadow(0 0 0px #ff2e63); }
+    25%    { transform:scale(1.07); filter:drop-shadow(0 0 28px #ff2e63) drop-shadow(0 0 56px #8a00d4); }
+    50%    { transform:scale(1.12); filter:drop-shadow(0 0 18px #ff2e63) drop-shadow(0 0 80px #8a00d4) brightness(1.25); }
+    75%    { transform:scale(1.07); filter:drop-shadow(0 0 32px #ff2e63) drop-shadow(0 0 60px #8a00d4); }
+  }
+  .splash-fx-slime  { animation:splashSlime  .65s ease-in-out infinite; }
+  .splash-fx-glitch { animation:splashGlitch .35s steps(1)   infinite; }
+  .splash-fx-pulse  { animation:splashPulse  .5s  ease-in-out infinite; }
   #langBtn{ position:fixed; top:12px; right:14px; z-index:70; font-family:"Fredoka",sans-serif;
             font-weight:700; font-size:13px; padding:5px 11px; border-radius:10px;
             background:#1c3a2e; border:1.5px solid #5fe0a8; color:#eafff5; cursor:pointer;
