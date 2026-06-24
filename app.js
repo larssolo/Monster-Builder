@@ -86,6 +86,7 @@ const recBtn = $("recBtn");
 const againBtn = $("againBtn");
 const voicePrompt = $("voice-prompt");
 const langBtn = $("langBtn");
+const splashImg = $("splashImg");
 
 let W = 700, H = 520;
 
@@ -289,6 +290,7 @@ function partFromFeatures(f, idx) {
 // ---------------- flow ----------------
 async function start() {
   startBtn.disabled = true;
+  splashImg.style.display = "none";
   resetData();
   try {
     status(t("loading"));
@@ -1915,27 +1917,24 @@ function drawMonsterBig(t){
 // ---------------- idle splash ----------------
 let _splashGC = null;
 
+const SPLASH_DOTS = [
+  [0.32, -0.21, 26], [-0.31, -0.19, 22], [0.34, 0.15, 23], [-0.29, 0.17, 18],
+  [0.15, -0.31, 16], [-0.13, -0.29, 14], [0, -0.35, 12],
+  [0.40, -0.04, 14], [-0.39, 0.02, 16], [-0.20, -0.35, 10], [0.23, 0.29, 12]
+];
+
+const SPLASH_DRIPS = [
+  {dx: -1.1, d: 0}, {dx: -0.35, d: 0.35}, {dx: 0.3, d: 0.65},
+  {dx: 1.05, d: 0.15}, {dx: -0.72, d: 0.8}
+];
+
 function drawIdleSplash(t) {
   ctx.clearRect(0, 0, W, H);
 
-  const cx = W / 2;
-  const cy = H * 0.46;
+  const cx = W / 2, cy = H * 0.46;
   const fs = Math.min(W / 4.0, H / 3.0, 130);
-  const y1 = cy - fs * 0.62;
-  const y2 = cy + fs * 0.6;
+  const dripBaseY = cy + fs * 1.14;
 
-  // Purple background glow
-  ctx.save();
-  ctx.filter = 'blur(32px)';
-  ctx.fillStyle = '#7420d8';
-  ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.37, H * 0.32, 0, 0, Math.PI * 2); ctx.fill();
-  [[cx - W*0.27, cy - H*0.18, W*0.09], [cx + W*0.28, cy - H*0.16, W*0.08],
-   [cx + W*0.24, cy + H*0.19, W*0.07], [cx - W*0.22, cy + H*0.18, W*0.08]].forEach(([x,y,r]) => {
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
-  });
-  ctx.restore();
-
-  // Goo layer on offscreen canvas then blur+contrast for merge effect
   if (!_splashGC || _splashGC.width !== canvas.width || _splashGC.height !== canvas.height) {
     _splashGC = document.createElement('canvas');
     _splashGC.width = canvas.width;
@@ -1948,60 +1947,33 @@ function drawIdleSplash(t) {
   gx.save();
   gx.scale(dpr, dpr);
   gx.fillStyle = '#7dff3c';
-  gx.strokeStyle = '#7dff3c';
-  gx.lineJoin = 'round';
 
-  // Text with thick stroke so letters blob together
-  gx.font = `700 ${fs}px Fredoka`;
-  gx.textAlign = 'center';
-  gx.textBaseline = 'middle';
-  gx.lineWidth = fs * 0.16;
-  gx.strokeText('Monster', cx, y1);
-  gx.fillText('Monster', cx, y1);
-  gx.strokeText('Builder', cx, y2);
-  gx.fillText('Builder', cx, y2);
-
-  // Splatter blobs
-  [[cx+W*0.32, cy-H*0.21, 26],[cx-W*0.31, cy-H*0.19, 22],
-   [cx+W*0.34, cy+H*0.15, 23],[cx-W*0.29, cy+H*0.17, 18],
-   [cx+W*0.15, cy-H*0.31, 16],[cx-W*0.13, cy-H*0.29, 14],
-   [cx, cy-H*0.35, 12],[cx+W*0.40, cy-H*0.04, 14],[cx-W*0.39, cy+H*0.02, 16],
-   [cx-W*0.20, cy-H*0.35, 10],[cx+W*0.23, cy+H*0.29, 12]].forEach(([x,y,r]) => {
-    gx.beginPath(); gx.arc(x, y, r, 0, Math.PI*2); gx.fill();
+  // Pulsing splatter dots
+  SPLASH_DOTS.forEach(([dx, dy, r], i) => {
+    const pulse = 1 + 0.22 * Math.sin(t / 550 + i * 1.4);
+    gx.beginPath();
+    gx.arc(cx + dx * W, cy + dy * H, r * pulse, 0, Math.PI * 2);
+    gx.fill();
   });
 
   // Animated drips
-  [{x: cx-fs*1.1, d:0}, {x:cx-fs*0.35, d:0.35}, {x:cx+fs*0.3, d:0.65},
-   {x:cx+fs*1.05, d:0.15}, {x:cx-fs*0.72, d:0.8}].forEach(({x, d}) => {
+  SPLASH_DRIPS.forEach(({dx, d}) => {
     const p = ((t / 2200 + d) % 1);
-    const baseY = y2 + fs * 0.54;
-    const tipY  = baseY + p * H * 0.26;
-    const br    = 7 + p * 6;
-    const stemH = Math.max(0, tipY - baseY - br);
-    gx.fillRect(x - 5, baseY, 10, stemH);
-    gx.beginPath(); gx.arc(x, baseY + stemH + br, br, 0, Math.PI*2); gx.fill();
+    const tipY = dripBaseY + p * H * 0.28;
+    const br   = 7 + p * 6;
+    const stemH = Math.max(0, tipY - dripBaseY - br);
+    gx.fillRect(cx + dx * fs - 5, dripBaseY, 10, stemH);
+    gx.beginPath();
+    gx.arc(cx + dx * fs, dripBaseY + stemH + br, br, 0, Math.PI * 2);
+    gx.fill();
   });
+
   gx.restore();
 
-  // Draw offscreen canvas with goo (blur→contrast) filter
+  // Composite with goo filter for slimy merge effect
   ctx.save();
   ctx.filter = 'blur(10px) contrast(22)';
   ctx.drawImage(gc, 0, 0, W, H);
-  ctx.restore();
-
-  // Sharp text overlay
-  ctx.save();
-  ctx.font = `700 ${fs}px Fredoka`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = '#1a0044';
-  ctx.strokeText('Monster', cx, y1);
-  ctx.strokeText('Builder', cx, y2);
-  ctx.fillStyle = '#8fff4a';
-  ctx.fillText('Monster', cx, y1);
-  ctx.fillText('Builder', cx, y2);
   ctx.restore();
 }
 
@@ -2061,6 +2033,7 @@ function backToStart() {
   startBtn.style.display = "";
   startBtn.disabled = false;
   startBtn.textContent = "Start";
+  splashImg.style.display = "";
   setPrompt(t("pressStart"));
   status("");
 }
@@ -2077,5 +2050,7 @@ langBtn.addEventListener("click", () => {
   localStorage.setItem("mb-lang", lang);
   applyLang();
 });
+splashImg.addEventListener("click", start);
+splashImg.style.display = "";
 applyLang();
 requestAnimationFrame(mainLoop);
