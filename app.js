@@ -87,6 +87,7 @@ const againBtn = $("againBtn");
 const voicePrompt = $("voice-prompt");
 const langBtn = $("langBtn");
 const splashImg = $("splashImg");
+const splashWrap = $("splashWrap");
 
 let W = 700, H = 520;
 
@@ -290,7 +291,7 @@ function partFromFeatures(f, idx) {
 // ---------------- flow ----------------
 async function start() {
   startBtn.disabled = true;
-  splashImg.style.display = "none";
+  splashWrap.style.display = "none";
   resetData();
   try {
     status(t("loading"));
@@ -2031,7 +2032,7 @@ function backToStart() {
   startBtn.style.display = "";
   startBtn.disabled = false;
   startBtn.textContent = "Start";
-  splashImg.style.display = "block";
+  splashWrap.style.display = "flex";
   setPrompt(t("pressStart"));
   status("");
 }
@@ -2055,6 +2056,6 @@ splashImg.addEventListener("mouseenter", () => {
   splashImg.classList.add(SPLASH_FX[Math.floor(Math.random() * SPLASH_FX.length)]);
 });
 splashImg.addEventListener("mouseleave", () => splashImg.classList.remove(...SPLASH_FX));
-splashImg.style.display = "block";
+splashWrap.style.display = "flex";
 applyLang();
 requestAnimationFrame(mainLoop);

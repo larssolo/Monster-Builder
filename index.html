@@ -177,8 +177,10 @@
   #camPanel{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
              z-index:5; margin:0; background:rgba(6,10,8,.85); backdrop-filter:blur(6px); }
   .cam-frame{ width:240px; height:180px; }
-  #splashImg{ position:fixed; inset:15%; object-fit:contain;
-              cursor:pointer; z-index:3; display:none;
+  #splashWrap{ position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+               z-index:3; pointer-events:none; }
+  #splashImg{ width:70%; max-height:70vh; object-fit:contain;
+              cursor:pointer; pointer-events:auto;
               transform-origin:center center; transition:filter .15s; }
 
   @keyframes splashSlime{
@@ -234,11 +236,11 @@
   <p id="tagline" class="tag"></p>
   <p id="privacyText" class="privacy"></p>
 
+  <div id="splashWrap"><img id="splashImg" src="monster-builder-splash.png" alt="Monster Builder"></div>
   <div id="magic">
     <div id="revealBg"></div>
     <canvas id="fx"></canvas>
     <div id="glitch"></div>
-    <img id="splashImg" src="monster-builder-splash.png" alt="Monster Builder">
     <div id="camPanel" class="panel" style="display:none">
       <div id="scanLabel" class="plabel"></div>
       <div class="cam-frame"><video id="video" playsinline muted></video></div>
