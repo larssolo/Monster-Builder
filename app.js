@@ -301,10 +301,8 @@ async function start() {
     });
     initAudio(vstream);
     startBtn.style.display = "none";
-    state = "listening";
-    startKeywordWatch();
-    setPrompt(t("promptStart"));
     status("");
+    startRound();
   } catch (e) {
     status(t("error")(e.message));
     startBtn.disabled = false;
