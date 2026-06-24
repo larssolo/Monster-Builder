@@ -1912,6 +1912,99 @@ function drawMonsterBig(t){
   }
 }
 
+// ---------------- idle splash ----------------
+let _splashGC = null;
+
+function drawIdleSplash(t) {
+  ctx.clearRect(0, 0, W, H);
+
+  const cx = W / 2;
+  const cy = H * 0.46;
+  const fs = Math.min(W / 4.0, H / 3.0, 130);
+  const y1 = cy - fs * 0.62;
+  const y2 = cy + fs * 0.6;
+
+  // Purple background glow
+  ctx.save();
+  ctx.filter = 'blur(32px)';
+  ctx.fillStyle = '#7420d8';
+  ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.37, H * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+  [[cx - W*0.27, cy - H*0.18, W*0.09], [cx + W*0.28, cy - H*0.16, W*0.08],
+   [cx + W*0.24, cy + H*0.19, W*0.07], [cx - W*0.22, cy + H*0.18, W*0.08]].forEach(([x,y,r]) => {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.restore();
+
+  // Goo layer on offscreen canvas then blur+contrast for merge effect
+  if (!_splashGC || _splashGC.width !== canvas.width || _splashGC.height !== canvas.height) {
+    _splashGC = document.createElement('canvas');
+    _splashGC.width = canvas.width;
+    _splashGC.height = canvas.height;
+  }
+  const gc = _splashGC;
+  const gx = gc.getContext('2d');
+  const dpr = canvas.width / W;
+  gx.clearRect(0, 0, gc.width, gc.height);
+  gx.save();
+  gx.scale(dpr, dpr);
+  gx.fillStyle = '#7dff3c';
+  gx.strokeStyle = '#7dff3c';
+  gx.lineJoin = 'round';
+
+  // Text with thick stroke so letters blob together
+  gx.font = `700 ${fs}px Fredoka`;
+  gx.textAlign = 'center';
+  gx.textBaseline = 'middle';
+  gx.lineWidth = fs * 0.16;
+  gx.strokeText('Monster', cx, y1);
+  gx.fillText('Monster', cx, y1);
+  gx.strokeText('Builder', cx, y2);
+  gx.fillText('Builder', cx, y2);
+
+  // Splatter blobs
+  [[cx+W*0.32, cy-H*0.21, 26],[cx-W*0.31, cy-H*0.19, 22],
+   [cx+W*0.34, cy+H*0.15, 23],[cx-W*0.29, cy+H*0.17, 18],
+   [cx+W*0.15, cy-H*0.31, 16],[cx-W*0.13, cy-H*0.29, 14],
+   [cx, cy-H*0.35, 12],[cx+W*0.40, cy-H*0.04, 14],[cx-W*0.39, cy+H*0.02, 16],
+   [cx-W*0.20, cy-H*0.35, 10],[cx+W*0.23, cy+H*0.29, 12]].forEach(([x,y,r]) => {
+    gx.beginPath(); gx.arc(x, y, r, 0, Math.PI*2); gx.fill();
+  });
+
+  // Animated drips
+  [{x: cx-fs*1.1, d:0}, {x:cx-fs*0.35, d:0.35}, {x:cx+fs*0.3, d:0.65},
+   {x:cx+fs*1.05, d:0.15}, {x:cx-fs*0.72, d:0.8}].forEach(({x, d}) => {
+    const p = ((t / 2200 + d) % 1);
+    const baseY = y2 + fs * 0.54;
+    const tipY  = baseY + p * H * 0.26;
+    const br    = 7 + p * 6;
+    const stemH = Math.max(0, tipY - baseY - br);
+    gx.fillRect(x - 5, baseY, 10, stemH);
+    gx.beginPath(); gx.arc(x, baseY + stemH + br, br, 0, Math.PI*2); gx.fill();
+  });
+  gx.restore();
+
+  // Draw offscreen canvas with goo (blur→contrast) filter
+  ctx.save();
+  ctx.filter = 'blur(10px) contrast(22)';
+  ctx.drawImage(gc, 0, 0, W, H);
+  ctx.restore();
+
+  // Sharp text overlay
+  ctx.save();
+  ctx.font = `700 ${fs}px Fredoka`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#1a0044';
+  ctx.strokeText('Monster', cx, y1);
+  ctx.strokeText('Builder', cx, y2);
+  ctx.fillStyle = '#8fff4a';
+  ctx.fillText('Monster', cx, y1);
+  ctx.fillText('Builder', cx, y2);
+  ctx.restore();
+}
+
 function mainLoop() {
   const t = performance.now();
 
@@ -1939,7 +2032,9 @@ function mainLoop() {
   } else if (state === "roar" || state === "getready") {
     drawRoarFX(t);
     drawCauldron(t, state === "roar" ? 4 + liveLevel * 8 : 0);
-  } else if (state !== "idle") {
+  } else if (state === "idle") {
+    drawIdleSplash(t);
+  } else {
     drawCauldron(t, 0);
   }
   requestAnimationFrame(mainLoop);
