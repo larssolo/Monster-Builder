@@ -2033,7 +2033,7 @@ function backToStart() {
   startBtn.style.display = "";
   startBtn.disabled = false;
   startBtn.textContent = "Start";
-  splashImg.style.display = "";
+  splashImg.style.display = "block";
   setPrompt(t("pressStart"));
   status("");
 }
@@ -2051,6 +2051,6 @@ langBtn.addEventListener("click", () => {
   applyLang();
 });
 splashImg.addEventListener("click", start);
-splashImg.style.display = "";
+splashImg.style.display = "block";
 applyLang();
 requestAnimationFrame(mainLoop);
