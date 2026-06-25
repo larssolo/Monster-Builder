@@ -104,18 +104,19 @@ function makeEye(r, irisHue, opts) {
 
   // iris — emissive (glowing) when furious
   const irisMat = new THREE.MeshStandardMaterial({ color: hsl(irisHue, 0.85, 0.45), roughness: 0.35 });
-  if (glow > 0) { irisMat.emissive = hsl(irisHue, 0.95, 0.55); irisMat.emissiveIntensity = glow * 1.6; }
+  if (glow > 0) { const gh = opts.glowHue != null ? opts.glowHue : irisHue; irisMat.emissive = hsl(gh, 0.95, 0.55); irisMat.emissiveIntensity = glow * 1.8; }
   const iris = new THREE.Mesh(new THREE.SphereGeometry(r * 0.5, 24, 24), irisMat);
   iris.position.z = r * 0.9; iris.scale.z = 0.4;
   group.add(iris);
 
-  // pupil — round (calm) or a vertical reptilian slit (menacing)
+  // pupil — round + wide (calm, cute) or a constricted vertical reptilian slit (menacing)
+  const pr = r * 0.26 * (opts.pupil === "slit" ? 1 : lerp(1.2, 0.62, opts.constrict || 0));
   const pupil = new THREE.Mesh(
-    new THREE.SphereGeometry(r * 0.26, 20, 20),
+    new THREE.SphereGeometry(pr, 20, 20),
     new THREE.MeshStandardMaterial({ color: 0x05060a, roughness: 0.5 })
   );
   pupil.position.z = r * 1.0;
-  if (opts.pupil === "slit") pupil.scale.set(0.32, 1.5, 0.4);
+  if (opts.pupil === "slit") pupil.scale.set(0.3, 1.65, 0.4);
   else pupil.scale.z = 0.4;
   group.add(pupil);
 
@@ -151,20 +152,25 @@ const toothMat = (danger) => new THREE.MeshStandardMaterial({
   roughness: 0.4
 });
 
-// translucent saliva strands hung from `anchorY`; animated to drip in render()
+// translucent saliva: a thin tapering string with a swelling droplet at the tip.
+// Each hangs from `anchorY` (top stays put) and is animated to stretch/drip in render().
 function makeDrool(mw, anchorY, count, danger) {
   if (count <= 0) return null;
   const group = new THREE.Group();
   const mat = new THREE.MeshPhysicalMaterial({
-    color: 0xcfe9ff, roughness: 0.08, metalness: 0,
-    transmission: 0.7, thickness: 0.4, ior: 1.33, transparent: true, opacity: 0.85
+    color: 0xcfe9ff, roughness: 0.05, metalness: 0,
+    transmission: 0.85, thickness: 0.5, ior: 1.35, transparent: true, opacity: 0.9
   });
   for (let i = 0; i < count; i++) {
     const x = (count === 1 ? 0 : (i / (count - 1) - 0.5) * 2) * mw * 0.7;
     const len = lerp(0.14, 0.5, danger) * (0.7 + Math.random() * 0.6);
-    const strand = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 1, 4, 8), mat);
+    const strand = new THREE.Group();
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.032, 1, 7), mat); // thin at top, fatter low
+    str.position.y = -0.5; strand.add(str);                                          // spans 0 .. -1
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 12), mat);
+    bead.scale.set(1, 1.3, 1); bead.position.y = -1.0; strand.add(bead);             // droplet at the tip
     strand.position.set(x, anchorY, 0.18);
-    drools.push({ mesh: strand, baseY: anchorY, len, phase: Math.random() * Math.PI * 2 });
+    drools.push({ mesh: strand, bead, len, phase: Math.random() * Math.PI * 2 });
     group.add(strand);
   }
   return group;
@@ -259,12 +265,16 @@ function spikeRow(count, danger, hue) {
   return group;
 }
 
-// angry bony brow bar; inner end dips down to form a furious V as danger rises
-function makeBrow(side, danger, hue) {
-  const w = lerp(0.2, 0.42, danger), h = 0.07 + danger * 0.07;
-  const brow = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.13),
-    new THREE.MeshStandardMaterial({ color: hsl(hue, 0.5, lerp(0.3, 0.12, danger)), roughness: 0.7 }));
-  brow.rotation.z = side * lerp(0.04, 0.7, danger);
+// angry bony brow bar; inner end dips down to form a furious V as danger rises.
+// `scl` scales it to the eye; it tilts back to hug the curved brow ridge.
+function makeBrow(side, danger, hue, scl) {
+  scl = scl || 1;
+  const w = lerp(0.2, 0.42, danger) * scl, h = (0.06 + danger * 0.06) * scl, d = 0.12 * scl;
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshStandardMaterial({ color: hsl(hue, 0.5, lerp(0.32, 0.1, danger)), roughness: 0.7 }));
+  brow.rotation.z = side * lerp(0.05, 0.8, danger);
+  brow.rotation.x = -0.3;
+  brow.castShadow = true;
   return brow;
 }
 
@@ -320,27 +330,34 @@ function attachMouth(g, base, danger, x, y, z, hue, widthScale) {
 }
 
 // ---------------- build per-archetype ----------------
-function addEyes(group, count, gap, y, z, hue, danger, bright, eyeScale) {
+// Eyes vary with the scanned face (size from base.eye, spacing from base.gap) and
+// with the voice (danger → smaller/angrier/glowing, screech/bright → hotter glow).
+// `base` is the face DNA; `sizeMul` shrinks eyes for small sub-heads.
+function addEyes(group, count, gap, y, z, hue, danger, bright, base, sizeMul) {
+  const eyeScale = lerp(0.82, 1.2, base ? base.eye : 0.5) * (sizeMul || 1);
+  const g2 = gap * lerp(0.8, 1.25, base ? base.gap : 0.5);
   const positions =
     count === 1 ? [[0, y]] :
-    count === 2 ? [[-gap, y], [gap, y * 1.04]] :
-                  [[-gap, y + 0.05], [gap, y + 0.08], [0, y - 0.28]];
+    count === 2 ? [[-g2, y], [g2, y * 1.04]] :
+                  [[-g2, y + 0.05], [g2, y + 0.08], [0, y - 0.28]];
   positions.forEach(([x, ey], i) => {
     // big round eyes when calm, smaller meaner eyes when furious; slight asymmetry per eye
     const baseR = count === 1 ? 0.55 : count === 2 ? 0.36 : 0.3;
-    const r = baseR * lerp(1.15, 0.82, danger) * (eyeScale || 1) * (i % 2 ? 0.92 : 1);
+    const r = baseR * lerp(1.18, 0.8, danger) * eyeScale * (i % 2 ? 0.9 : 1);
     // different eyes: vary iris hue, pupil shape and glow per eye
-    const irisHue = (hue + 175 + i * 38) % 360;
-    const glow = danger > 0.4 ? clamp((danger - 0.4) / 0.6, 0, 1) * (0.6 + 0.5 * (bright || 0)) : 0;
-    const bloodshot = clamp((danger - 0.3) / 0.7, 0, 1);
-    const pupil = danger > 0.25 && (danger > 0.55 || i % 2 === 1) ? "slit" : "round";
-    const eye = makeEye(r, irisHue, { pupil, glow, bloodshot });
+    const irisHue = (hue + 150 + i * 46) % 360;
+    const glow = danger > 0.38 ? clamp((danger - 0.38) / 0.62, 0, 1) * (0.6 + 0.5 * (bright || 0)) : 0;
+    const glowHue = lerp(irisHue, 8, (bright || 0) * 0.6);          // screech → hotter/red glow
+    const bloodshot = clamp((danger - 0.28) / 0.72, 0, 1);
+    const pupil = danger > 0.25 && (danger > 0.5 || i % 2 === 1) ? "slit" : "round";
+    const eye = makeEye(r, irisHue, { pupil, glow, glowHue, bloodshot, constrict: danger });
     eye.group.position.set(x, ey, z);
+    eye.group.rotation.z = (x >= 0 ? -1 : 1) * danger * 0.25;        // inward-down glare when furious
     group.add(eye.group);
     eyes.push(eye);
-    // angry brow above each eye
-    const brow = makeBrow(x >= 0 ? 1 : -1, danger, hue);
-    brow.position.set(x, ey + r * 1.05, z + r * 0.45);
+    // angry brow, scaled to the eye and sitting on the brow ridge (not floating)
+    const brow = makeBrow(x >= 0 ? 1 : -1, danger, hue, r / 0.36);
+    brow.position.set(x, ey + r * 0.92, z + r * 0.18);
     group.add(brow);
   });
 }
@@ -384,7 +401,7 @@ function buildBlob(dna) {
   // hair tuft on top (shaggier with raspy voice)
   g.add(makeHair([[0, 0.95, 0.15, 0, 1, -0.25], [-0.28, 0.88, 0.1, -0.3, 1, -0.2], [0.28, 0.88, 0.1, 0.3, 1, -0.2]], danger, rough, hue));
 
-  addEyes(g, creature.eyeCount, 0.46, 0.24, 0.98, hue, danger, bright, lerp(0.85, 1.18, base.eye));
+  addEyes(g, creature.eyeCount, 0.46, 0.24, 0.98, hue, danger, bright, base);
 
   // snarling mouth (more + sharper teeth with a wider face / louder roar)
   const mw = lerp(0.32, 0.6, base.mouth * 0.5 + danger * 0.5);
@@ -438,7 +455,7 @@ function buildBeast(dna) {
   const spikeCount = Math.round(lerp(0, 7, danger));
   if (spikeCount > 0) g.add(spikeRow(spikeCount, danger, hue));
 
-  addEyes(g, creature.eyeCount, 0.42, 0.32, 1.0, hue, danger, bright, lerp(0.85, 1.15, base.eye));
+  addEyes(g, creature.eyeCount, 0.42, 0.32, 1.0, hue, danger, bright, base);
 
   // fanged mouth on the snout
   const mw = lerp(0.26, 0.46, base.mouth * 0.5 + danger * 0.5);
@@ -503,6 +520,20 @@ function buildEyeball(dna) {
 const glowBall = (r, h) => new THREE.Mesh(new THREE.SphereGeometry(r, 12, 12),
   new THREE.MeshStandardMaterial({ color: hsl(h, 0.9, 0.6), emissive: hsl(h, 0.9, 0.55), emissiveIntensity: 1.2, roughness: 0.4 }));
 const finMesh = (size, mat) => { const f = new THREE.Mesh(new THREE.ConeGeometry(size, size * 1.5, 6), mat); f.scale.z = 0.16; f.castShadow = true; return f; };
+// a two-pronged pincer claw opening toward +z (palm + upper/lower fingers)
+function pincer(size, danger, mat) {
+  const g = new THREE.Group();
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(size * 0.5, 14, 12), mat); palm.scale.set(1, 0.75, 1.25); g.add(palm);
+  const gape = lerp(0.18, 0.5, danger);                          // claws open wider when furious
+  [-1, 1].forEach(s => {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(size * 0.22, size * 1.15, 9), mat);
+    f.position.set(0, s * size * 0.26, size * 0.62);
+    f.rotation.x = Math.PI / 2 + s * gape;
+    g.add(f);
+  });
+  g.traverse(o => { o.castShadow = true; });
+  return g;
+}
 
 // 4. FLERHOVEDET — body with 2–3 fanged heads on necks
 function buildMultihead(dna) {
@@ -519,7 +550,7 @@ function buildMultihead(dna) {
     g.add(placeFrom(taper(nl, 0.17, 0.12, mat), baseP, dir, nl));
     const head = new THREE.Group(); head.position.copy(headP);
     head.add(blobMesh(0.42, seed + i * 7, 0.1, mat));
-    addEyes(head, 2, 0.18, 0.12, 0.4, (hue + i * 22) % 360, danger, bright, 0.8);
+    addEyes(head, 2, 0.18, 0.12, 0.4, (hue + i * 22) % 360, danger, bright, base, 0.72);
     attachMouth(head, base, danger, 0, -0.16, 0.4, hue, 0.62);
     if (danger > 0.3) [-1, 1].forEach(s => { const hn = horn(lerp(0.25, 0.5, danger), 0.07, (hue + 40) % 360); hn.position.set(s * 0.22, 0.36, 0.1); hn.rotation.z = -s * 0.4; head.add(hn); });
     g.add(head);
@@ -540,7 +571,7 @@ function buildOctopus(dna) {
     const len = lerp(1.3, 2.0, Math.abs(f) + 0.2);
     g.add(placeFrom(taper(len, 0.17, 0.04, mat), baseP, new THREE.Vector3(f * 1.5, -1.0, 0.1), len));
   }
-  addEyes(g, creature.eyeCount, 0.42, 0.45, 0.85, hue, danger, bright, lerp(0.85, 1.15, base.eye));
+  addEyes(g, creature.eyeCount, 0.42, 0.45, 0.85, hue, danger, bright, base);
   attachMouth(g, base, danger, 0, 0.0, 0.92, hue, 1);
   g.add(makeHair([[0, 1.2, 0.1, 0, 1, -0.2]], danger, rough, hue));
   if (danger > 0.35) g.add(spikeRow(Math.round(lerp(0, 5, danger)), danger, hue));
@@ -556,7 +587,7 @@ function buildFish(dna) {
   const tail = finMesh(0.85, finMat); tail.rotation.x = Math.PI / 2; tail.scale.set(1.1, 1.1, 0.16); tail.position.set(0, 0.1, -1.5); g.add(tail);
   const dorsal = finMesh(0.55, finMat); dorsal.position.set(0, 1.0, -0.2); g.add(dorsal);
   [-1, 1].forEach(s => { const pf = finMesh(0.45, finMat); pf.rotation.z = s * Math.PI / 2.2; pf.position.set(s * 0.95, -0.15, 0.35); g.add(pf); });
-  addEyes(g, 2, 0.55, 0.32, 1.0, hue, danger, bright, lerp(0.85, 1.2, base.eye));
+  addEyes(g, 2, 0.55, 0.32, 1.0, hue, danger, bright, base);
   attachMouth(g, base, danger, 0, -0.28, 1.18, hue, 1.1);
   if (danger > 0.35) g.add(spikeRow(Math.round(lerp(0, 5, danger)), danger, hue));
   return g;
@@ -569,12 +600,16 @@ function buildBird(dna) {
   const body = blobMesh(1.0, seed, 0.08, mat); body.scale.set(0.85, 1.05, 0.9); g.add(body);
   const wmat = new THREE.MeshStandardMaterial({ color: hsl(hue, 0.6, lerp(0.45, 0.28, danger)), roughness: 0.7, side: THREE.DoubleSide });
   [-1, 1].forEach(s => { const w = makeWing(wmat); w.scale.set(s * 1.15, 1.0, 1); w.position.set(s * 0.7, 0.1, -0.15); w.rotation.y = s * 0.5; w.rotation.z = s * 0.5; g.add(w); });
-  // beak
+  // big two-part beak that gapes open with danger
   const beakMat = new THREE.MeshStandardMaterial({ color: hsl((hue + 50) % 360, 0.85, 0.5), roughness: 0.45 });
-  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.55, 12), beakMat); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.0, 1.05); g.add(beak);
+  const gape = lerp(0.05, 0.35, danger);
+  [-1, 1].forEach(s => {
+    const bk = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.7, 4), beakMat);
+    bk.rotation.x = Math.PI / 2 + s * gape; bk.position.set(0, 0.05 + s * 0.14, 1.0); bk.castShadow = true; g.add(bk);
+  });
   // tail feathers
   [-0.3, 0, 0.3].forEach((x, i) => { const tf = finMesh(0.4, mat); tf.position.set(x, -0.6, -0.9); tf.rotation.x = -0.6; g.add(tf); });
-  addEyes(g, 2, 0.34, 0.42, 0.82, hue, danger, bright, lerp(0.85, 1.15, base.eye));
+  addEyes(g, 2, 0.34, 0.42, 0.82, hue, danger, bright, base);
   g.add(makeHair([[0, 1.05, 0.1, 0, 1, -0.1], [-0.15, 1.0, 0.1, -0.2, 1, 0], [0.15, 1.0, 0.1, 0.2, 1, 0]], Math.min(1, danger + 0.2), rough, (hue + 80) % 360));
   if (danger > 0.45) attachMouth(g, base, danger, 0, -0.28, 0.92, hue, 0.7);
   return g;
@@ -593,7 +628,7 @@ function buildWorm(dna) {
   }
   const head = new THREE.Group(); head.position.set(-0.25, 0.62, 0.35);
   head.add(blobMesh(0.6, seed, 0.08, mat));
-  addEyes(head, 2, 0.24, 0.16, 0.55, hue, danger, bright, lerp(0.85, 1.15, base.eye));
+  addEyes(head, 2, 0.24, 0.16, 0.55, hue, danger, bright, base);
   attachMouth(head, base, danger, 0, -0.18, 0.55, hue, 0.9);
   [-1, 1].forEach(s => { const a = taper(0.55, 0.05, 0.02, mat); placeFrom(a, new THREE.Vector3(s * 0.25, 0.5, 0.1), new THREE.Vector3(s * 0.4, 1, 0.1), 0.55); head.add(a); const b = glowBall(0.09, (hue + 60) % 360); b.position.set(s * 0.45, 1.0, 0.18); head.add(b); });
   g.add(head);
@@ -628,18 +663,18 @@ function buildCrab(dna) {
     const by = 0.1 - i * 0.25, len = 0.8;
     g.add(placeFrom(taper(len, 0.08, 0.04, mat), new THREE.Vector3(s * 1.1, by, 0), new THREE.Vector3(s * 1.0, -0.5 - i * 0.2, 0.1), len));
   });
-  // big claws
+  // big claws on raised arms
   [-1, 1].forEach(s => {
-    const armLen = 0.7;
-    g.add(placeFrom(taper(armLen, 0.13, 0.1, mat), new THREE.Vector3(s * 1.0, 0.2, 0.3), new THREE.Vector3(s * 1.1, 0.3, 0.6), armLen));
-    const clawMat = bodyMat((hue + 20) % 360, danger);
-    [-1, 1].forEach(cs => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 10), clawMat); c.position.set(s * 1.55, 0.45 + cs * 0.12, 0.85); c.rotation.z = s * 0.5; c.rotation.x = -0.4; c.castShadow = true; g.add(c); });
+    const armLen = 0.75;
+    g.add(placeFrom(taper(armLen, 0.14, 0.1, mat), new THREE.Vector3(s * 1.0, 0.2, 0.3), new THREE.Vector3(s * 1.15, 0.35, 0.7), armLen));
+    const claw = pincer(0.6, danger, bodyMat((hue + 20) % 360, danger));
+    claw.position.set(s * 1.45, 0.5, 0.95); claw.rotation.y = s * 0.35; g.add(claw);
   });
-  // eyestalks
-  [-1, 1].forEach(s => {
+  // eyestalks (different eyes, angry glare when furious)
+  [-1, 1].forEach((s, i) => {
     g.add(placeFrom(taper(0.4, 0.06, 0.05, mat), new THREE.Vector3(s * 0.35, 0.45, 0.5), new THREE.Vector3(s * 0.2, 1, 0.2), 0.4));
-    const eye = makeEye(0.26, (hue + 175) % 360, { pupil: danger > 0.4 ? "slit" : "round", glow: danger > 0.4 ? danger : 0, bloodshot: clamp((danger - 0.3) / 0.7, 0, 1) });
-    eye.group.position.set(s * 0.32, 0.95, 0.6); g.add(eye.group); eyes.push(eye);
+    const eye = makeEye(0.26 * lerp(1.1, 0.85, danger), (hue + 175 + i * 40) % 360, { pupil: danger > 0.35 ? "slit" : "round", glow: danger > 0.38 ? danger * (0.6 + 0.5 * bright) : 0, glowHue: lerp((hue + 175) % 360, 8, bright * 0.6), bloodshot: clamp((danger - 0.3) / 0.7, 0, 1), constrict: danger });
+    eye.group.position.set(s * 0.32, 0.95, 0.6); eye.group.rotation.z = -s * danger * 0.25; g.add(eye.group); eyes.push(eye);
   });
   attachMouth(g, base, danger, 0, 0.05, 0.92, hue, 0.9);
   return g;
@@ -647,7 +682,7 @@ function buildCrab(dna) {
 
 // 10. DRAGE — wings, horns, tail with spikes, long neck + fanged head, fire
 function buildDragon(dna) {
-  const { base, creature, danger, hue, seed, mat } = dnaBits(dna);
+  const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
   const g = new THREE.Group();
   const body = blobMesh(1.0, seed, 0.1, mat); body.scale.set(1.05, 0.95, 1.05); g.add(body);
   // membrane wings
@@ -664,7 +699,7 @@ function buildDragon(dna) {
   const head = new THREE.Group(); head.position.copy(headP); head.rotation.y = 0.3;
   const snout = blobMesh(0.5, seed + 2, 0.06, mat); snout.scale.set(1.2, 0.8, 1.1); head.add(snout);
   [-1, 1].forEach(s => { const h = horn(lerp(0.4, 0.7, danger), 0.1, (hue + 40) % 360); h.position.set(s * 0.22, 0.4, -0.2); h.rotation.z = -s * 0.3; h.rotation.x = -0.5; head.add(h); });
-  addEyes(head, 2, 0.2, 0.18, 0.42, hue, danger, base ? 0.7 : 0.5, 0.85);
+  addEyes(head, 2, 0.2, 0.18, 0.42, hue, danger, bright, base, 0.8);
   attachMouth(head, base, danger, 0, -0.16, 0.5, hue, 1);
   g.add(head);
   if (danger > 0.5) {
@@ -694,7 +729,7 @@ function buildJelly(dna) {
     g.add(placeFrom(taper(len, 0.06, 0.02, tmat), baseP, new THREE.Vector3(f * 0.5, -1, 0.05), len));
     if (i % 2 === 0) { const b = glowBall(0.06, (hue + i * 20) % 360); b.position.copy(baseP).add(new THREE.Vector3(f * 0.5 * 0.9, -len * 0.9, 0)); g.add(b); }
   }
-  addEyes(g, creature.eyeCount, 0.4, 0.45, 0.7, hue, danger, bright, lerp(0.85, 1.1, base.eye));
+  addEyes(g, creature.eyeCount, 0.4, 0.45, 0.7, hue, danger, bright, base);
   attachMouth(g, base, danger, 0, 0.1, 0.78, hue, 0.85);
   return g;
 }
@@ -714,7 +749,7 @@ function buildVirus(dna) {
     g.add(placeFrom(taper(len, 0.07, 0.05, spikeMat), dir.clone().multiplyScalar(0.9), dir, len));
     const b = glowBall(0.1, (hue + 120) % 360); b.position.copy(dir.clone().multiplyScalar(0.9 + len)); g.add(b);
   }
-  addEyes(g, 2, 0.32, 0.12, 0.95, hue, danger, bright, lerp(0.8, 1.1, base.eye));
+  addEyes(g, 2, 0.32, 0.12, 0.95, hue, danger, bright, base);
   attachMouth(g, base, danger, 0, -0.3, 0.9, hue, 0.7);
   return g;
 }
@@ -737,8 +772,8 @@ function buildBacteria(dna) {
     g.add(placeFrom(taper(lerp(0.12, 0.3, danger), 0.03, 0.01, mat), base2, dir, 0.2));
   }
   [[-0.4, 0.25, 0.62], [0.5, 0.1, 0.55], [0.0, -0.2, 0.6]].forEach(([x, y, z], i) => {
-    const eye = makeEye(0.2 - i * 0.02, (hue + 175 + i * 30) % 360, { pupil: i % 2 ? "slit" : "round", glow: danger > 0.4 ? danger : 0, bloodshot: clamp((danger - 0.3) / 0.7, 0, 1) });
-    eye.group.position.set(x, y, z); g.add(eye.group); eyes.push(eye);
+    const eye = makeEye((0.2 - i * 0.02) * lerp(1.1, 0.85, danger), (hue + 175 + i * 40) % 360, { pupil: i % 2 ? "slit" : "round", glow: danger > 0.38 ? danger * (0.6 + 0.5 * bright) : 0, glowHue: lerp((hue + 175) % 360, 8, bright * 0.6), bloodshot: clamp((danger - 0.3) / 0.7, 0, 1), constrict: danger });
+    eye.group.position.set(x, y, z); eye.group.rotation.z = (x >= 0 ? -1 : 1) * danger * 0.2; g.add(eye.group); eyes.push(eye);
   });
   attachMouth(g, base, danger, 0.15, -0.35, 0.6, hue, 0.7);
   return g;
@@ -764,7 +799,7 @@ function buildSnake(dna) {
   }
   const head = new THREE.Group(); head.position.set(0, 1.18, 0.6); head.rotation.x = 0.25;
   const hb = blobMesh(0.5, seed, 0.05, mat); hb.scale.set(1.15, 0.8, 1.25); head.add(hb);
-  addEyes(head, 2, 0.22, 0.16, 0.42, hue, Math.max(0.55, danger), bright, 0.7); // snakes always look mean
+  addEyes(head, 2, 0.22, 0.16, 0.42, hue, Math.max(0.55, danger), bright, base, 0.72); // snakes always look mean
   attachMouth(head, base, danger, 0, -0.17, 0.46, hue, 0.9);
   const tongueMat = new THREE.MeshStandardMaterial({ color: 0xcc2244, roughness: 0.5 });
   [-1, 1].forEach(s => { const tk = taper(0.45, 0.03, 0.01, tongueMat); placeFrom(tk, new THREE.Vector3(0, -0.2, 0.5), new THREE.Vector3(s * 0.35, -0.25, 1), 0.45); head.add(tk); });
@@ -781,11 +816,11 @@ function buildScorpion(dna) {
   for (let i = 0; i < 3; i++) [-1, 1].forEach(s => {
     const len = 0.7; g.add(placeFrom(taper(len, 0.07, 0.03, mat), new THREE.Vector3(s * 0.85, -0.1, 0.4 - i * 0.4), new THREE.Vector3(s * 1.0, -0.6, 0.2 - i * 0.3), len));
   });
-  // pincers (forward)
+  // pedipalp pincers reaching forward
   [-1, 1].forEach(s => {
     g.add(placeFrom(taper(0.7, 0.1, 0.08, mat), new THREE.Vector3(s * 0.6, 0.05, 0.7), new THREE.Vector3(s * 0.6, 0.1, 1.2), 0.7));
-    const cm = bodyMat((hue + 20) % 360, danger);
-    [-1, 1].forEach(cs => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 8), cm); c.position.set(s * 0.7, 0.15 + cs * 0.1, 1.35); c.rotation.x = -1.2; c.castShadow = true; g.add(c); });
+    const claw = pincer(0.42, danger, bodyMat((hue + 20) % 360, danger));
+    claw.position.set(s * 0.6, 0.12, 1.4); claw.rotation.y = s * 0.2; g.add(claw);
   });
   // segmented tail arcing up and over the back
   const segN = 6; let p = new THREE.Vector3(0, 0.2, -0.9);
@@ -798,7 +833,7 @@ function buildScorpion(dna) {
   }
   const sting = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 10), glowBall(0.01, (hue + 100) % 360).material); sting.material = new THREE.MeshStandardMaterial({ color: hsl((hue + 100) % 360, 0.9, 0.6), emissive: hsl((hue + 100) % 360, 0.9, 0.55), emissiveIntensity: 1.8, roughness: 0.4 });
   sting.position.copy(p); sting.rotation.x = 2.4; g.add(sting);
-  addEyes(g, 3, 0.22, 0.18, 0.95, hue, Math.max(0.5, danger), bright, 0.7);
+  addEyes(g, 3, 0.22, 0.18, 0.95, hue, Math.max(0.5, danger), bright, base, 0.7);
   attachMouth(g, base, danger, 0, 0.0, 0.95, hue, 0.7);
   return g;
 }
@@ -815,12 +850,15 @@ function buildDino(dna) {
   // tail
   const tail = taper(1.5, 0.32, 0.04, mat); placeFrom(tail, new THREE.Vector3(0, -0.4, -0.7), new THREE.Vector3(0, -0.1, -1.4), 1.5); g.add(tail);
   g.add(spikeRow(Math.max(3, Math.round(lerp(3, 8, danger))), danger, hue));
-  // huge head on a short neck
-  const headP = new THREE.Vector3(-0.15, 0.85, 0.55);
-  const head = new THREE.Group(); head.position.copy(headP);
-  const hb = blobMesh(0.62, seed + 2, 0.05, mat); hb.scale.set(1.15, 0.85, 1.25); head.add(hb);
-  addEyes(head, 2, 0.28, 0.26, 0.5, hue, Math.max(0.45, danger), bright, lerp(0.85, 1.1, base.eye));
-  attachMouth(head, base, danger, 0, -0.22, 0.6, hue, 1.25);
+  // huge head with an elongated snout jutting forward (clear T-rex profile)
+  const head = new THREE.Group(); head.position.set(-0.05, 0.72, 0.7); head.rotation.x = 0.12;
+  const skull = blobMesh(0.58, seed + 2, 0.05, mat); skull.scale.set(0.92, 0.8, 1.55); head.add(skull);
+  // brow ridge slab
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.5), mat); ridge.position.set(0, 0.42, 0.45); ridge.rotation.x = -0.2; ridge.castShadow = true; head.add(ridge);
+  addEyes(head, 2, 0.3, 0.34, 0.55, hue, Math.max(0.45, danger), bright, base, 0.92);
+  attachMouth(head, base, danger, 0, -0.22, 1.05, hue, 1.35);
+  // nostrils at the snout tip
+  [-1, 1].forEach(s => { const n = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshStandardMaterial({ color: 0x120a0e })); n.position.set(s * 0.12, 0.05, 1.4); head.add(n); });
   g.add(head);
   return g;
 }
@@ -842,7 +880,7 @@ function buildCell(dna) {
   const nuc = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 18), new THREE.MeshStandardMaterial({ color: hsl((hue + 180) % 360, 0.6, 0.3), roughness: 0.5 })); nuc.position.set(0, 0, 0.1); g.add(nuc);
   // organelles
   for (let i = 0; i < 5; i++) { const o = glowBall(0.08, (hue + 60) % 360); o.material.emissiveIntensity = 0.6; const a = i * 1.7; o.position.set(Math.cos(a) * 0.55, Math.sin(a) * 0.45, 0.3); g.add(o); }
-  addEyes(g, creature.eyeCount, 0.4, 0.2, 0.95, hue, danger, bright, lerp(0.85, 1.1, base.eye));
+  addEyes(g, creature.eyeCount, 0.4, 0.2, 0.95, hue, danger, bright, base);
   attachMouth(g, base, danger, 0, -0.35, 0.92, hue, 0.8);
   return g;
 }
@@ -962,11 +1000,13 @@ export function render(t, prog, menace) {
     e.group.rotation.x = -lookY;
   });
 
-  // dripping drool: strands stretch and shrink, hanging from the lower lip
+  // dripping drool: the string stretches/relaxes (anchored at the lip); the
+  // droplet swells near the bottom and is counter-scaled so it stays round
   for (const d of drools) {
-    const h = d.len * (0.6 + 0.4 * Math.sin(t / 600 + d.phase));
+    const drip = 0.6 + 0.4 * Math.sin(t / 600 + d.phase);
+    const h = d.len * drip;
     d.mesh.scale.y = h;
-    d.mesh.position.y = d.baseY - 0.54 * h;
+    if (d.bead) d.bead.scale.set(1, (1.25 / Math.max(0.18, h)) * (0.85 + 0.4 * drip), 1);
   }
   // gentle hair sway
   for (const h of hairs) {
