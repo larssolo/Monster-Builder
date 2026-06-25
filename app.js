@@ -117,7 +117,7 @@ const canvas3d = $("fx3d");
 const PILOT_3D = new Set(["blob", "beast", "eyeball"]);
 let m3dMod = null;
 let m3dState = "none";          // none | loading | ready | failed
-function dnaSnapshot() { return { base, parts, creature, menace }; }
+function dnaSnapshot() { return { base, parts, creature, menace, voice: { loud: aggLoud, rough: aggRough, bright: aggBright } }; }
 function ensure3D() {
   if (m3dState !== "none") return;
   m3dState = "loading";
@@ -2102,9 +2102,10 @@ requestAnimationFrame(mainLoop);
   const forced = q.get("type");
   if (!forced) return;
   const num = (k, d) => { const v = parseFloat(q.get(k)); return Number.isFinite(v) ? v : d; };
-  base.body = num("body", 0.5); base.eye = 0.5; base.gap = 0.5;
-  base.mouth = 0.6; base.hue = num("hue", 200); base.captured = true;
+  base.body = num("body", 0.5); base.eye = num("eye", 0.5); base.gap = num("gap", 0.5);
+  base.mouth = num("mouth", 0.6); base.hue = num("hue", 200); base.captured = true;
   menace = num("menace", 0.5);
+  aggLoud = num("loud", menace); aggRough = num("rough", menace); aggBright = num("bright", 0.5);
   parts.length = 0;
   creature = buildCreature();
   creature.type = forced;
