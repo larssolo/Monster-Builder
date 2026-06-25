@@ -564,12 +564,22 @@ function buildOctopus(dna) {
   const { base, creature, danger, rough, bright, hue, seed, mat } = dnaBits(dna);
   const g = new THREE.Group();
   const head = blobMesh(1.0, seed, 0.1, mat); head.scale.set(1.0, 1.08, 1.0); head.position.y = 0.3; g.add(head);
+  const suckerMat = new THREE.MeshStandardMaterial({ color: hsl((hue + 20) % 360, 0.5, 0.72), roughness: 0.5 });
   const n = creature.tentacles || 6;
   for (let i = 0; i < n; i++) {
     const f = n === 1 ? 0 : i / (n - 1) - 0.5;
     const baseP = new THREE.Vector3(f * 1.7, -0.45, 0.2 + Math.cos(f * 3) * 0.1);
-    const len = lerp(1.3, 2.0, Math.abs(f) + 0.2);
-    g.add(placeFrom(taper(len, 0.17, 0.04, mat), baseP, new THREE.Vector3(f * 1.5, -1.0, 0.1), len));
+    const len = lerp(1.1, 1.7, Math.abs(f) + 0.2);
+    const dir = new THREE.Vector3(f * 1.5, -1.0, 0.1).normalize();
+    g.add(placeFrom(taper(len, 0.17, 0.06, mat), baseP, dir, len));
+    // curled tip hooking forward + a couple of suckers down the front
+    const tipBase = baseP.clone().addScaledVector(dir, len);
+    g.add(placeFrom(taper(len * 0.42, 0.06, 0.02, mat), tipBase, new THREE.Vector3(f * 0.6, -0.2, 1.1), len * 0.42));
+    for (let k = 1; k <= 3; k++) {
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), suckerMat);
+      s.position.copy(baseP).addScaledVector(dir, len * (k / 4)).add(new THREE.Vector3(0, 0, 0.16));
+      g.add(s);
+    }
   }
   addEyes(g, creature.eyeCount, 0.42, 0.45, 0.85, hue, danger, bright, base);
   attachMouth(g, base, danger, 0, 0.0, 0.92, hue, 1);
@@ -838,28 +848,47 @@ function buildScorpion(dna) {
   return g;
 }
 
-// 17. DINO / T-REX — bulky body, huge fanged head, tiny arms, thick legs, tail, spikes
+// 17. DINO / T-REX — predatory lean, big distinct skull on a neck, tiny clawed arms.
+// Presented at a 3/4 yaw so the long snout, neck and tail read in profile.
 function buildDino(dna) {
   const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
   const g = new THREE.Group();
-  const body = blobMesh(1.0, seed, 0.09, mat); body.scale.set(1.0, 1.0, 1.15); g.add(body);
-  // thick legs
-  [-0.45, 0.45].forEach(x => { const l = limb(0.7, 0.24, mat); l.position.set(x, -0.85, 0.2); g.add(l); const foot = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), mat); foot.scale.set(1, 0.5, 1.4); foot.position.set(x, -1.4, 0.45); g.add(foot); });
-  // tiny arms
-  [-1, 1].forEach(s => { const a = limb(0.25, 0.07, mat); a.position.set(s * 0.55, 0.0, 0.55); a.rotation.z = s * 0.6; g.add(a); });
-  // tail
-  const tail = taper(1.5, 0.32, 0.04, mat); placeFrom(tail, new THREE.Vector3(0, -0.4, -0.7), new THREE.Vector3(0, -0.1, -1.4), 1.5); g.add(tail);
-  g.add(spikeRow(Math.max(3, Math.round(lerp(3, 8, danger))), danger, hue));
-  // huge head with an elongated snout jutting forward (clear T-rex profile)
-  const head = new THREE.Group(); head.position.set(-0.05, 0.72, 0.7); head.rotation.x = 0.12;
-  const skull = blobMesh(0.58, seed + 2, 0.05, mat); skull.scale.set(0.92, 0.8, 1.55); head.add(skull);
-  // brow ridge slab
-  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.5), mat); ridge.position.set(0, 0.42, 0.45); ridge.rotation.x = -0.2; ridge.castShadow = true; head.add(ridge);
-  addEyes(head, 2, 0.3, 0.34, 0.55, hue, Math.max(0.45, danger), bright, base, 0.92);
-  attachMouth(head, base, danger, 0, -0.22, 1.05, hue, 1.35);
-  // nostrils at the snout tip
-  [-1, 1].forEach(s => { const n = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshStandardMaterial({ color: 0x120a0e })); n.position.set(s * 0.12, 0.05, 1.4); head.add(n); });
-  g.add(head);
+  const d = new THREE.Group(); d.rotation.y = 0.42; d.scale.setScalar(0.9); g.add(d);   // 3/4 stance, sized to frame
+  const clawMat = toothMat(danger);
+  // forward-leaning body
+  const body = blobMesh(1.0, seed, 0.09, mat); body.scale.set(0.92, 0.9, 1.25); body.position.set(0, -0.12, -0.2); body.rotation.x = -0.14; d.add(body);
+  // thick legs + clawed feet
+  [-0.46, 0.46].forEach(x => {
+    const l = limb(0.7, 0.26, mat); l.position.set(x, -0.85, 0.15); d.add(l);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 12), mat); foot.scale.set(1, 0.5, 1.5); foot.position.set(x, -1.4, 0.45); foot.castShadow = true; d.add(foot);
+    for (let c = -1; c <= 1; c++) { const cl = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.2, 6), clawMat); cl.position.set(x + c * 0.13, -1.46, 0.78); cl.rotation.x = 1.3; d.add(cl); }
+  });
+  // tiny clawed arms
+  [-1, 1].forEach(s => {
+    const a = limb(0.3, 0.08, mat); a.position.set(s * 0.5, -0.05, 0.55); a.rotation.z = s * 0.5; a.rotation.x = -0.4; d.add(a);
+    [-1, 1].forEach(c => { const cl = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 6), clawMat); cl.position.set(s * 0.68, -0.32, 0.78 + c * 0.06); cl.rotation.x = -0.7; d.add(cl); });
+  });
+  // heavy balancing tail + dorsal spikes
+  const tail = taper(1.8, 0.36, 0.04, mat); placeFrom(tail, new THREE.Vector3(0, -0.3, -0.8), new THREE.Vector3(0, 0.1, -1.6), 1.8); d.add(tail);
+  d.add(spikeRow(Math.max(3, Math.round(lerp(3, 8, danger))), danger, hue));
+
+  // ---- thick S-neck holding a clearly separate skull out in front ----
+  const neckBase = new THREE.Vector3(0, 0.32, 0.35), headBase = new THREE.Vector3(0, 0.88, 1.0);
+  const nd = headBase.clone().sub(neckBase), nl = nd.length();
+  d.add(placeFrom(taper(nl, 0.38, 0.27, mat), neckBase, nd, nl));
+
+  const head = new THREE.Group(); head.position.set(0, 0.98, 1.15); head.rotation.x = 0.14;
+  const cranium = blobMesh(0.52, seed + 2, 0.05, mat); cranium.scale.set(1.0, 0.92, 1.05); cranium.position.set(0, 0.06, -0.25); head.add(cranium);
+  // long muzzle jutting forward (the iconic snout)
+  const muzzle = blobMesh(0.4, seed + 5, 0.04, mat); muzzle.scale.set(0.84, 0.62, 1.55); muzzle.position.set(0, -0.1, 0.55); head.add(muzzle);
+  // bony brow ridges over the eyes
+  [-1, 1].forEach(s => { const h = horn(lerp(0.22, 0.42, danger), 0.1, (hue + 30) % 360); h.position.set(s * 0.3, 0.46, 0.1); h.rotation.z = -s * 0.32; h.rotation.x = -0.4; head.add(h); });
+  addEyes(head, 2, 0.32, 0.34, 0.3, hue, Math.max(0.45, danger), bright, base, 0.95);
+  // wide gaping jaw along the muzzle, packed with teeth
+  const mouth = makeMouth(lerp(0.34, 0.54, base.mouth * 0.5 + danger * 0.5), danger, Math.round(lerp(7, 15, base.mouth * 0.5 + danger * 0.6)), hue);
+  mouth.group.position.set(0, -0.28, 1.12); mouth.group.rotation.x = 0.12; head.add(mouth.group);
+  [-1, 1].forEach(s => { const n = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshStandardMaterial({ color: 0x120a0e })); n.position.set(s * 0.1, 0.0, 1.35); head.add(n); });
+  d.add(head);
   return g;
 }
 
@@ -869,12 +898,15 @@ function buildCell(dna) {
   const g = new THREE.Group();
   const memMat = new THREE.MeshPhysicalMaterial({ color: hsl(hue, 0.55, lerp(0.5, 0.32, danger)), roughness: 0.25, transmission: 0.45, thickness: 1.0, ior: 1.2, transparent: true, opacity: 0.9 });
   const mem = blobMesh(1.0, seed, 0.16 + danger * 0.05, memMat); g.add(mem);
-  // pseudopods
+  // pseudopods — blunt, rounded blobby arms (amoeba), with a bulb at the tip
   const n = 5 + Math.floor((creature.tentacles || 4) / 2);
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2; const dir = new THREE.Vector3(Math.cos(a), Math.sin(a) * 0.9, Math.sin(a * 1.7) * 0.5).normalize();
-    const len = lerp(0.5, 0.95, Math.random());
-    g.add(placeFrom(taper(len, 0.18, 0.05, memMat.clone()), dir.clone().multiplyScalar(0.85), dir, len));
+    const len = lerp(0.45, 0.85, Math.random());
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, len, 6, 12), memMat.clone()); arm.castShadow = true;
+    g.add(placeFrom(arm, dir.clone().multiplyScalar(0.8), dir, len));
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 12), memMat.clone());
+    bulb.position.copy(dir.clone().multiplyScalar(0.8 + len)); bulb.castShadow = true; g.add(bulb);
   }
   // visible nucleus
   const nuc = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 18), new THREE.MeshStandardMaterial({ color: hsl((hue + 180) % 360, 0.6, 0.3), roughness: 0.5 })); nuc.position.set(0, 0, 0.1); g.add(nuc);
