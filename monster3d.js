@@ -16,7 +16,8 @@ let jaws = [];               // [{ group, amt }] lower-jaw groups for growl
 let builtSig = null;         // signature of the DNA we last built
 let _w = 0, _h = 0;
 
-const PILOT = new Set(["blob", "beast", "eyeball"]);
+const PILOT = new Set(["blob", "multihead", "octopus", "beast", "fish", "bird", "worm", "alien",
+  "crab", "dragon", "eyeball", "jelly", "virus", "bacteria", "snake", "scorpion", "dino", "cell"]);
 export const supports = (type) => PILOT.has(type);
 
 // ---------------- helpers ----------------
@@ -267,6 +268,57 @@ function makeBrow(side, danger, hue) {
   return brow;
 }
 
+// a tapered limb/tentacle/tail/neck segment (cylinder, axis +y, centred)
+function taper(len, baseR, tipR, mat) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(tipR, baseR, len, 12), mat);
+  m.castShadow = true;
+  return m;
+}
+
+// orient `mesh` (a +y aligned shape) so its base sits at `base` pointing along `dir`
+function placeFrom(mesh, base, dir, len) {
+  const d = dir.clone().normalize();
+  mesh.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d));
+  mesh.position.copy(base).addScaledVector(d, len / 2);
+  return mesh;
+}
+
+// a thin membrane wing (bat/dragon style) as an extruded shape
+function makeWing(mat) {
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.quadraticCurveTo(0.7, 0.55, 1.5, 0.3);
+  s.quadraticCurveTo(1.05, 0.05, 1.35, -0.45);
+  s.quadraticCurveTo(0.85, -0.2, 0.55, -0.7);
+  s.quadraticCurveTo(0.35, -0.25, 0, 0);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: false });
+  geo.translate(0, 0, -0.025);
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = true;
+  return m;
+}
+
+// common DNA unpacking shared by every builder
+function dnaBits(dna) {
+  const danger = clamp(dna.menace, 0, 1);
+  return {
+    base: dna.base, creature: dna.creature, parts: dna.parts || [],
+    danger, rough: dna.voice ? dna.voice.rough : danger, bright: dna.voice ? dna.voice.bright : 0.5,
+    hue: dna.base.hue, seed: dna.base.gap * 7 + dna.creature.sn * 0.013,
+    mat: bodyMat(dna.base.hue, danger)
+  };
+}
+
+// attach a danger-scaled snarling mouth to `g` at (x,y,z); width auto from face + danger
+function attachMouth(g, base, danger, x, y, z, hue, widthScale) {
+  const mw = lerp(0.26, 0.5, base.mouth * 0.5 + danger * 0.5) * (widthScale || 1);
+  const teeth = Math.round(lerp(4, 11, base.mouth * 0.5 + danger * 0.6));
+  const mouth = makeMouth(mw, danger, teeth, hue);
+  mouth.group.position.set(x, y, z);
+  g.add(mouth.group);
+  return mouth;
+}
+
 // ---------------- build per-archetype ----------------
 function addEyes(group, count, gap, y, z, hue, danger, bright, eyeScale) {
   const positions =
@@ -447,7 +499,361 @@ function buildEyeball(dna) {
   return g;
 }
 
-const BUILDERS = { blob: buildBlob, beast: buildBeast, eyeball: buildEyeball };
+// small shared bits used by several builders below
+const glowBall = (r, h) => new THREE.Mesh(new THREE.SphereGeometry(r, 12, 12),
+  new THREE.MeshStandardMaterial({ color: hsl(h, 0.9, 0.6), emissive: hsl(h, 0.9, 0.55), emissiveIntensity: 1.2, roughness: 0.4 }));
+const finMesh = (size, mat) => { const f = new THREE.Mesh(new THREE.ConeGeometry(size, size * 1.5, 6), mat); f.scale.z = 0.16; f.castShadow = true; return f; };
+
+// 4. FLERHOVEDET — body with 2–3 fanged heads on necks
+function buildMultihead(dna) {
+  const { base, creature, danger, rough, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = blobMesh(1.0, seed, 0.13, mat); body.scale.set(1.12, 0.95, 1); g.add(body);
+  [[-1.05, 0.36], [1.05, -0.36]].forEach(([x, rz]) => { const a = limb(0.5, 0.2, mat); a.position.set(x, -0.1, 0.1); a.rotation.z = rz; g.add(a); });
+  [-0.45, 0.45].forEach(x => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), mat); f.scale.set(1, 0.5, 1.2); f.position.set(x, -1.0, 0.25); f.castShadow = true; g.add(f); });
+  const n = creature.heads || 2;
+  for (let i = 0; i < n; i++) {
+    const fx = n === 1 ? 0 : (i / (n - 1) - 0.5) * (n === 2 ? 0.78 : 1.05);
+    const headP = new THREE.Vector3(fx, 0.95, 0.18), baseP = new THREE.Vector3(fx * 0.55, 0.42, 0.18);
+    const dir = headP.clone().sub(baseP), nl = dir.length();
+    g.add(placeFrom(taper(nl, 0.17, 0.12, mat), baseP, dir, nl));
+    const head = new THREE.Group(); head.position.copy(headP);
+    head.add(blobMesh(0.42, seed + i * 7, 0.1, mat));
+    addEyes(head, 2, 0.18, 0.12, 0.4, (hue + i * 22) % 360, danger, bright, 0.8);
+    attachMouth(head, base, danger, 0, -0.16, 0.4, hue, 0.62);
+    if (danger > 0.3) [-1, 1].forEach(s => { const hn = horn(lerp(0.25, 0.5, danger), 0.07, (hue + 40) % 360); hn.position.set(s * 0.22, 0.36, 0.1); hn.rotation.z = -s * 0.4; head.add(hn); });
+    g.add(head);
+  }
+  g.add(makeHair([[0, 0.55, -0.4, 0, 1, -0.5]], danger, rough, hue));
+  return g;
+}
+
+// 3. BLÆKSPRUTTE — domed head + splaying tentacles
+function buildOctopus(dna) {
+  const { base, creature, danger, rough, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const head = blobMesh(1.0, seed, 0.1, mat); head.scale.set(1.0, 1.08, 1.0); head.position.y = 0.3; g.add(head);
+  const n = creature.tentacles || 6;
+  for (let i = 0; i < n; i++) {
+    const f = n === 1 ? 0 : i / (n - 1) - 0.5;
+    const baseP = new THREE.Vector3(f * 1.7, -0.45, 0.2 + Math.cos(f * 3) * 0.1);
+    const len = lerp(1.3, 2.0, Math.abs(f) + 0.2);
+    g.add(placeFrom(taper(len, 0.17, 0.04, mat), baseP, new THREE.Vector3(f * 1.5, -1.0, 0.1), len));
+  }
+  addEyes(g, creature.eyeCount, 0.42, 0.45, 0.85, hue, danger, bright, lerp(0.85, 1.15, base.eye));
+  attachMouth(g, base, danger, 0, 0.0, 0.92, hue, 1);
+  g.add(makeHair([[0, 1.2, 0.1, 0, 1, -0.2]], danger, rough, hue));
+  if (danger > 0.35) g.add(spikeRow(Math.round(lerp(0, 5, danger)), danger, hue));
+  return g;
+}
+
+// 5. FISK — body elongated toward the camera, fins + tail
+function buildFish(dna) {
+  const { base, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = blobMesh(1.0, seed, 0.07, mat); body.scale.set(0.92, 0.98, 1.35); g.add(body);
+  const finMat = bodyMat((hue + 40) % 360, danger);
+  const tail = finMesh(0.85, finMat); tail.rotation.x = Math.PI / 2; tail.scale.set(1.1, 1.1, 0.16); tail.position.set(0, 0.1, -1.5); g.add(tail);
+  const dorsal = finMesh(0.55, finMat); dorsal.position.set(0, 1.0, -0.2); g.add(dorsal);
+  [-1, 1].forEach(s => { const pf = finMesh(0.45, finMat); pf.rotation.z = s * Math.PI / 2.2; pf.position.set(s * 0.95, -0.15, 0.35); g.add(pf); });
+  addEyes(g, 2, 0.55, 0.32, 1.0, hue, danger, bright, lerp(0.85, 1.2, base.eye));
+  attachMouth(g, base, danger, 0, -0.28, 1.18, hue, 1.1);
+  if (danger > 0.35) g.add(spikeRow(Math.round(lerp(0, 5, danger)), danger, hue));
+  return g;
+}
+
+// 6. FUGL — round body, wings, beak, crest, tail
+function buildBird(dna) {
+  const { base, creature, danger, rough, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = blobMesh(1.0, seed, 0.08, mat); body.scale.set(0.85, 1.05, 0.9); g.add(body);
+  const wmat = new THREE.MeshStandardMaterial({ color: hsl(hue, 0.6, lerp(0.45, 0.28, danger)), roughness: 0.7, side: THREE.DoubleSide });
+  [-1, 1].forEach(s => { const w = makeWing(wmat); w.scale.set(s * 1.15, 1.0, 1); w.position.set(s * 0.7, 0.1, -0.15); w.rotation.y = s * 0.5; w.rotation.z = s * 0.5; g.add(w); });
+  // beak
+  const beakMat = new THREE.MeshStandardMaterial({ color: hsl((hue + 50) % 360, 0.85, 0.5), roughness: 0.45 });
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.55, 12), beakMat); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.0, 1.05); g.add(beak);
+  // tail feathers
+  [-0.3, 0, 0.3].forEach((x, i) => { const tf = finMesh(0.4, mat); tf.position.set(x, -0.6, -0.9); tf.rotation.x = -0.6; g.add(tf); });
+  addEyes(g, 2, 0.34, 0.42, 0.82, hue, danger, bright, lerp(0.85, 1.15, base.eye));
+  g.add(makeHair([[0, 1.05, 0.1, 0, 1, -0.1], [-0.15, 1.0, 0.1, -0.2, 1, 0], [0.15, 1.0, 0.1, 0.2, 1, 0]], Math.min(1, danger + 0.2), rough, (hue + 80) % 360));
+  if (danger > 0.45) attachMouth(g, base, danger, 0, -0.28, 0.92, hue, 0.7);
+  return g;
+}
+
+// 7. ORM — chain of segment spheres along a curve + fanged head
+function buildWorm(dna) {
+  const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const segs = creature.segments || 5;
+  for (let i = segs - 1; i >= 0; i--) {
+    const f = i / (segs - 1);
+    const x = lerp(-0.2, 1.2, f), y = lerp(0.55, -0.9, f) + Math.sin(f * 4) * 0.12, z = lerp(0.3, -0.6, f);
+    const r = lerp(0.62, 0.32, f);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 16), mat); s.position.set(x, y, z); s.castShadow = true; g.add(s);
+  }
+  const head = new THREE.Group(); head.position.set(-0.25, 0.62, 0.35);
+  head.add(blobMesh(0.6, seed, 0.08, mat));
+  addEyes(head, 2, 0.24, 0.16, 0.55, hue, danger, bright, lerp(0.85, 1.15, base.eye));
+  attachMouth(head, base, danger, 0, -0.18, 0.55, hue, 0.9);
+  [-1, 1].forEach(s => { const a = taper(0.55, 0.05, 0.02, mat); placeFrom(a, new THREE.Vector3(s * 0.25, 0.5, 0.1), new THREE.Vector3(s * 0.4, 1, 0.1), 0.55); head.add(a); const b = glowBall(0.09, (hue + 60) % 360); b.position.set(s * 0.45, 1.0, 0.18); head.add(b); });
+  g.add(head);
+  return g;
+}
+
+// 8. ALIEN — huge head, tiny body, almond eyes, antennae
+function buildAlien(dna) {
+  const { base, danger, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const headMat = bodyMat(hue, danger);
+  const head = blobMesh(1.0, seed, 0.05, headMat); head.scale.set(0.95, 1.05, 0.9); head.position.y = 0.35; g.add(head);
+  const body = blobMesh(0.5, seed + 3, 0.06, mat); body.scale.set(0.8, 0.9, 0.8); body.position.y = -0.85; g.add(body);
+  [-1, 1].forEach(s => { const a = taper(0.7, 0.08, 0.04, mat); placeFrom(a, new THREE.Vector3(s * 0.4, -0.85, 0.1), new THREE.Vector3(s * 0.9, -0.5, 0.2), 0.7); g.add(a); });
+  // almond black eyes
+  [-1, 1].forEach(s => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 24), new THREE.MeshPhysicalMaterial({ color: 0x05070d, roughness: 0.1, clearcoat: 1, emissive: hsl((hue + 160) % 360, 0.9, 0.4), emissiveIntensity: danger * 0.9 }));
+    e.scale.set(0.62, 1.05, 0.5); e.rotation.z = s * 0.4; e.position.set(s * 0.42, 0.45, 0.82); g.add(e);
+  });
+  [-1, 1].forEach(s => { const an = taper(0.7, 0.04, 0.02, mat); placeFrom(an, new THREE.Vector3(s * 0.3, 1.2, 0.1), new THREE.Vector3(s * 0.3, 1, 0), 0.7); g.add(an); const b = glowBall(0.1, (hue + 120) % 360); b.position.set(s * 0.4, 1.85, 0.1); g.add(b); });
+  attachMouth(g, base, danger, 0, -0.15, 0.92, hue, 0.6);
+  return g;
+}
+
+// 9. KRABBE — wide flat body, big claws, legs, eyestalks
+function buildCrab(dna) {
+  const { base, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = blobMesh(1.0, seed, 0.08, mat); body.scale.set(1.3, 0.7, 1.0); g.add(body);
+  // legs
+  for (let i = 0; i < 3; i++) [-1, 1].forEach(s => {
+    const by = 0.1 - i * 0.25, len = 0.8;
+    g.add(placeFrom(taper(len, 0.08, 0.04, mat), new THREE.Vector3(s * 1.1, by, 0), new THREE.Vector3(s * 1.0, -0.5 - i * 0.2, 0.1), len));
+  });
+  // big claws
+  [-1, 1].forEach(s => {
+    const armLen = 0.7;
+    g.add(placeFrom(taper(armLen, 0.13, 0.1, mat), new THREE.Vector3(s * 1.0, 0.2, 0.3), new THREE.Vector3(s * 1.1, 0.3, 0.6), armLen));
+    const clawMat = bodyMat((hue + 20) % 360, danger);
+    [-1, 1].forEach(cs => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.45, 10), clawMat); c.position.set(s * 1.55, 0.45 + cs * 0.12, 0.85); c.rotation.z = s * 0.5; c.rotation.x = -0.4; c.castShadow = true; g.add(c); });
+  });
+  // eyestalks
+  [-1, 1].forEach(s => {
+    g.add(placeFrom(taper(0.4, 0.06, 0.05, mat), new THREE.Vector3(s * 0.35, 0.45, 0.5), new THREE.Vector3(s * 0.2, 1, 0.2), 0.4));
+    const eye = makeEye(0.26, (hue + 175) % 360, { pupil: danger > 0.4 ? "slit" : "round", glow: danger > 0.4 ? danger : 0, bloodshot: clamp((danger - 0.3) / 0.7, 0, 1) });
+    eye.group.position.set(s * 0.32, 0.95, 0.6); g.add(eye.group); eyes.push(eye);
+  });
+  attachMouth(g, base, danger, 0, 0.05, 0.92, hue, 0.9);
+  return g;
+}
+
+// 10. DRAGE — wings, horns, tail with spikes, long neck + fanged head, fire
+function buildDragon(dna) {
+  const { base, creature, danger, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = blobMesh(1.0, seed, 0.1, mat); body.scale.set(1.05, 0.95, 1.05); g.add(body);
+  // membrane wings
+  const wmat = new THREE.MeshStandardMaterial({ color: hsl((hue + 170) % 360, 0.6, lerp(0.42, 0.26, danger)), roughness: 0.6, side: THREE.DoubleSide });
+  [-1, 1].forEach(s => { const w = makeWing(wmat); w.scale.set(s * 1.7, 1.7, 1); w.position.set(s * 0.5, 0.55, -0.35); w.rotation.y = s * 0.6; w.rotation.z = s * 0.25; g.add(w); });
+  // legs + tail
+  [-0.4, 0.4].forEach(x => { const l = limb(0.5, 0.18, mat); l.position.set(x, -0.95, 0.25); g.add(l); });
+  const tail = taper(1.6, 0.22, 0.03, mat); placeFrom(tail, new THREE.Vector3(0.2, -0.5, -0.6), new THREE.Vector3(0.7, -0.2, -1.2), 1.6); g.add(tail);
+  g.add(spikeRow(Math.max(4, Math.round(lerp(4, 9, danger))), danger, hue));
+  // neck + head
+  const headP = new THREE.Vector3(-0.55, 0.95, 0.5), neckBase = new THREE.Vector3(-0.15, 0.3, 0.3);
+  const dir = headP.clone().sub(neckBase), nl = dir.length();
+  g.add(placeFrom(taper(nl, 0.26, 0.2, mat), neckBase, dir, nl));
+  const head = new THREE.Group(); head.position.copy(headP); head.rotation.y = 0.3;
+  const snout = blobMesh(0.5, seed + 2, 0.06, mat); snout.scale.set(1.2, 0.8, 1.1); head.add(snout);
+  [-1, 1].forEach(s => { const h = horn(lerp(0.4, 0.7, danger), 0.1, (hue + 40) % 360); h.position.set(s * 0.22, 0.4, -0.2); h.rotation.z = -s * 0.3; h.rotation.x = -0.5; head.add(h); });
+  addEyes(head, 2, 0.2, 0.18, 0.42, hue, danger, base ? 0.7 : 0.5, 0.85);
+  attachMouth(head, base, danger, 0, -0.16, 0.5, hue, 1);
+  g.add(head);
+  if (danger > 0.5) {
+    const fmat = new THREE.MeshStandardMaterial({ color: 0xffb030, emissive: 0xff4d00, emissiveIntensity: 1.6, roughness: 0.5, transparent: true, opacity: 0.85 });
+    for (let k = 0; k < 3; k++) {
+      const fl = new THREE.Mesh(new THREE.ConeGeometry(0.13 - k * 0.025, 0.55, 8), fmat);
+      placeFrom(fl, new THREE.Vector3(-0.95 - k * 0.22, 0.85, 0.55), new THREE.Vector3(-1, -0.12, 0.45), 0.55);
+      g.add(fl);
+    }
+  }
+  return g;
+}
+
+// 12. GELÉ / MANET — translucent dome + trailing tentacles
+function buildJelly(dna) {
+  const { base, creature, danger, bright, hue, seed } = dnaBits(dna);
+  const g = new THREE.Group();
+  const domeMat = new THREE.MeshPhysicalMaterial({ color: hsl(hue, 0.7, 0.6), roughness: 0.1, transmission: 0.6, thickness: 0.8, ior: 1.3, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.0, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.6), domeMat);
+  dome.scale.set(1.1, 1.0, 1.1); dome.position.y = 0.3; g.add(dome);
+  const n = 8 + (creature.tentacles || 4);
+  for (let i = 0; i < n; i++) {
+    const f = i / (n - 1) - 0.5;
+    const baseP = new THREE.Vector3(f * 1.5, 0.0, Math.cos(f * 4) * 0.4);
+    const len = lerp(1.2, 1.9, Math.random());
+    const tmat = domeMat.clone(); tmat.opacity = 0.7;
+    g.add(placeFrom(taper(len, 0.06, 0.02, tmat), baseP, new THREE.Vector3(f * 0.5, -1, 0.05), len));
+    if (i % 2 === 0) { const b = glowBall(0.06, (hue + i * 20) % 360); b.position.copy(baseP).add(new THREE.Vector3(f * 0.5 * 0.9, -len * 0.9, 0)); g.add(b); }
+  }
+  addEyes(g, creature.eyeCount, 0.4, 0.45, 0.7, hue, danger, bright, lerp(0.85, 1.1, base.eye));
+  attachMouth(g, base, danger, 0, 0.1, 0.78, hue, 0.85);
+  return g;
+}
+
+// 13. VIRUS — icosphere core + radiating spike proteins with glowing tips
+function buildVirus(dna) {
+  const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 1), mat); core.castShadow = true; g.add(core);
+  const n = 16 + (creature.antennae || 2) * 2;
+  const spikeMat = bodyMat((hue + 30) % 360, danger);
+  for (let i = 0; i < n; i++) {
+    // spread points on a sphere
+    const y = 1 - (i / (n - 1)) * 2, rr = Math.sqrt(1 - y * y), th = i * 2.399;
+    const dir = new THREE.Vector3(Math.cos(th) * rr, y, Math.sin(th) * rr);
+    const len = lerp(0.35, 0.62, danger);
+    g.add(placeFrom(taper(len, 0.07, 0.05, spikeMat), dir.clone().multiplyScalar(0.9), dir, len));
+    const b = glowBall(0.1, (hue + 120) % 360); b.position.copy(dir.clone().multiplyScalar(0.9 + len)); g.add(b);
+  }
+  addEyes(g, 2, 0.32, 0.12, 0.95, hue, danger, bright, lerp(0.8, 1.1, base.eye));
+  attachMouth(g, base, danger, 0, -0.3, 0.9, hue, 0.7);
+  return g;
+}
+
+// 14. BAKTERIE — rod body, whipping flagella, pili spikes, scattered eyes
+function buildBacteria(dna) {
+  const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.4, 8, 20), mat); body.rotation.z = Math.PI / 2; body.castShadow = true; g.add(body);
+  // flagella
+  const nf = 3 + Math.floor((creature.segments || 4) / 3);
+  for (let i = 0; i < nf; i++) {
+    const y = (i / (nf - 1) - 0.5) * 0.8;
+    g.add(placeFrom(taper(1.5, 0.05, 0.02, bodyMat((hue + 40) % 360, danger)), new THREE.Vector3(-1.35, y, 0), new THREE.Vector3(-1.2, y * 1.5, 0.1), 1.5));
+  }
+  // pili spikes around
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2; const dir = new THREE.Vector3(Math.cos(a) * 0.5, Math.sin(a), Math.sin(a * 1.3) * 0.5).normalize();
+    const base2 = new THREE.Vector3(Math.cos(a) * 1.0, Math.sin(a) * 0.7, 0.0);
+    g.add(placeFrom(taper(lerp(0.12, 0.3, danger), 0.03, 0.01, mat), base2, dir, 0.2));
+  }
+  [[-0.4, 0.25, 0.62], [0.5, 0.1, 0.55], [0.0, -0.2, 0.6]].forEach(([x, y, z], i) => {
+    const eye = makeEye(0.2 - i * 0.02, (hue + 175 + i * 30) % 360, { pupil: i % 2 ? "slit" : "round", glow: danger > 0.4 ? danger : 0, bloodshot: clamp((danger - 0.3) / 0.7, 0, 1) });
+    eye.group.position.set(x, y, z); g.add(eye.group); eyes.push(eye);
+  });
+  attachMouth(g, base, danger, 0.15, -0.35, 0.6, hue, 0.7);
+  return g;
+}
+
+// 15. SLANGE — reared cobra: coiled base, rising neck, fanged head + forked tongue
+function buildSnake(dna) {
+  const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const N = 64;
+  for (let i = 0; i < N; i++) {
+    const f = i / (N - 1);
+    let x, y, z;
+    if (f < 0.55) {                              // loose coil at the base
+      const a = (f / 0.55) * Math.PI * 2 * 1.5, rad = 0.85 * (1 - (f / 0.55) * 0.35);
+      x = Math.cos(a) * rad; y = -1.15 + (f / 0.55) * 0.35; z = Math.sin(a) * rad * 0.55;
+    } else {                                      // neck rears up toward the camera
+      const u = (f - 0.55) / 0.45;
+      x = lerp(0.5, 0, u); y = lerp(-0.8, 1.0, u); z = lerp(0.1, 0.55, u);
+    }
+    const s = new THREE.Mesh(new THREE.SphereGeometry(lerp(0.36, 0.17, f), 14, 12), mat);
+    s.position.set(x, y, z); s.castShadow = true; g.add(s);
+  }
+  const head = new THREE.Group(); head.position.set(0, 1.18, 0.6); head.rotation.x = 0.25;
+  const hb = blobMesh(0.5, seed, 0.05, mat); hb.scale.set(1.15, 0.8, 1.25); head.add(hb);
+  addEyes(head, 2, 0.22, 0.16, 0.42, hue, Math.max(0.55, danger), bright, 0.7); // snakes always look mean
+  attachMouth(head, base, danger, 0, -0.17, 0.46, hue, 0.9);
+  const tongueMat = new THREE.MeshStandardMaterial({ color: 0xcc2244, roughness: 0.5 });
+  [-1, 1].forEach(s => { const tk = taper(0.45, 0.03, 0.01, tongueMat); placeFrom(tk, new THREE.Vector3(0, -0.2, 0.5), new THREE.Vector3(s * 0.35, -0.25, 1), 0.45); head.add(tk); });
+  g.add(head);
+  return g;
+}
+
+// 16. SKORPION — flat body, pincers, segmented tail arcing over with glowing stinger
+function buildScorpion(dna) {
+  const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = blobMesh(1.0, seed, 0.08, mat); body.scale.set(1.0, 0.6, 1.2); g.add(body);
+  // legs
+  for (let i = 0; i < 3; i++) [-1, 1].forEach(s => {
+    const len = 0.7; g.add(placeFrom(taper(len, 0.07, 0.03, mat), new THREE.Vector3(s * 0.85, -0.1, 0.4 - i * 0.4), new THREE.Vector3(s * 1.0, -0.6, 0.2 - i * 0.3), len));
+  });
+  // pincers (forward)
+  [-1, 1].forEach(s => {
+    g.add(placeFrom(taper(0.7, 0.1, 0.08, mat), new THREE.Vector3(s * 0.6, 0.05, 0.7), new THREE.Vector3(s * 0.6, 0.1, 1.2), 0.7));
+    const cm = bodyMat((hue + 20) % 360, danger);
+    [-1, 1].forEach(cs => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 8), cm); c.position.set(s * 0.7, 0.15 + cs * 0.1, 1.35); c.rotation.x = -1.2; c.castShadow = true; g.add(c); });
+  });
+  // segmented tail arcing up and over the back
+  const segN = 6; let p = new THREE.Vector3(0, 0.2, -0.9);
+  for (let i = 0; i < segN; i++) {
+    const ang = lerp(-0.2, 1.5, i / (segN - 1));
+    const dir = new THREE.Vector3(0, Math.sin(ang), -Math.cos(ang) * 0.6 + 0.2);
+    const len = 0.35; const seg = taper(len, 0.16 - i * 0.015, 0.13 - i * 0.015, mat);
+    placeFrom(seg, p, dir, len); g.add(seg);
+    p = p.clone().addScaledVector(dir.clone().normalize(), len);
+  }
+  const sting = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 10), glowBall(0.01, (hue + 100) % 360).material); sting.material = new THREE.MeshStandardMaterial({ color: hsl((hue + 100) % 360, 0.9, 0.6), emissive: hsl((hue + 100) % 360, 0.9, 0.55), emissiveIntensity: 1.8, roughness: 0.4 });
+  sting.position.copy(p); sting.rotation.x = 2.4; g.add(sting);
+  addEyes(g, 3, 0.22, 0.18, 0.95, hue, Math.max(0.5, danger), bright, 0.7);
+  attachMouth(g, base, danger, 0, 0.0, 0.95, hue, 0.7);
+  return g;
+}
+
+// 17. DINO / T-REX — bulky body, huge fanged head, tiny arms, thick legs, tail, spikes
+function buildDino(dna) {
+  const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
+  const g = new THREE.Group();
+  const body = blobMesh(1.0, seed, 0.09, mat); body.scale.set(1.0, 1.0, 1.15); g.add(body);
+  // thick legs
+  [-0.45, 0.45].forEach(x => { const l = limb(0.7, 0.24, mat); l.position.set(x, -0.85, 0.2); g.add(l); const foot = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), mat); foot.scale.set(1, 0.5, 1.4); foot.position.set(x, -1.4, 0.45); g.add(foot); });
+  // tiny arms
+  [-1, 1].forEach(s => { const a = limb(0.25, 0.07, mat); a.position.set(s * 0.55, 0.0, 0.55); a.rotation.z = s * 0.6; g.add(a); });
+  // tail
+  const tail = taper(1.5, 0.32, 0.04, mat); placeFrom(tail, new THREE.Vector3(0, -0.4, -0.7), new THREE.Vector3(0, -0.1, -1.4), 1.5); g.add(tail);
+  g.add(spikeRow(Math.max(3, Math.round(lerp(3, 8, danger))), danger, hue));
+  // huge head on a short neck
+  const headP = new THREE.Vector3(-0.15, 0.85, 0.55);
+  const head = new THREE.Group(); head.position.copy(headP);
+  const hb = blobMesh(0.62, seed + 2, 0.05, mat); hb.scale.set(1.15, 0.85, 1.25); head.add(hb);
+  addEyes(head, 2, 0.28, 0.26, 0.5, hue, Math.max(0.45, danger), bright, lerp(0.85, 1.1, base.eye));
+  attachMouth(head, base, danger, 0, -0.22, 0.6, hue, 1.25);
+  g.add(head);
+  return g;
+}
+
+// 18. CELLE / AMØBE — wobbly translucent membrane + pseudopods + visible nucleus
+function buildCell(dna) {
+  const { base, creature, danger, bright, hue, seed } = dnaBits(dna);
+  const g = new THREE.Group();
+  const memMat = new THREE.MeshPhysicalMaterial({ color: hsl(hue, 0.55, lerp(0.5, 0.32, danger)), roughness: 0.25, transmission: 0.45, thickness: 1.0, ior: 1.2, transparent: true, opacity: 0.9 });
+  const mem = blobMesh(1.0, seed, 0.16 + danger * 0.05, memMat); g.add(mem);
+  // pseudopods
+  const n = 5 + Math.floor((creature.tentacles || 4) / 2);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2; const dir = new THREE.Vector3(Math.cos(a), Math.sin(a) * 0.9, Math.sin(a * 1.7) * 0.5).normalize();
+    const len = lerp(0.5, 0.95, Math.random());
+    g.add(placeFrom(taper(len, 0.18, 0.05, memMat.clone()), dir.clone().multiplyScalar(0.85), dir, len));
+  }
+  // visible nucleus
+  const nuc = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 18), new THREE.MeshStandardMaterial({ color: hsl((hue + 180) % 360, 0.6, 0.3), roughness: 0.5 })); nuc.position.set(0, 0, 0.1); g.add(nuc);
+  // organelles
+  for (let i = 0; i < 5; i++) { const o = glowBall(0.08, (hue + 60) % 360); o.material.emissiveIntensity = 0.6; const a = i * 1.7; o.position.set(Math.cos(a) * 0.55, Math.sin(a) * 0.45, 0.3); g.add(o); }
+  addEyes(g, creature.eyeCount, 0.4, 0.2, 0.95, hue, danger, bright, lerp(0.85, 1.1, base.eye));
+  attachMouth(g, base, danger, 0, -0.35, 0.92, hue, 0.8);
+  return g;
+}
+
+const BUILDERS = {
+  blob: buildBlob, beast: buildBeast, eyeball: buildEyeball,
+  multihead: buildMultihead, octopus: buildOctopus, fish: buildFish, bird: buildBird,
+  worm: buildWorm, alien: buildAlien, crab: buildCrab, dragon: buildDragon,
+  jelly: buildJelly, virus: buildVirus, bacteria: buildBacteria, snake: buildSnake,
+  scorpion: buildScorpion, dino: buildDino, cell: buildCell
+};
 
 // ---------------- public API ----------------
 export function init(canvas) {

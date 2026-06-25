@@ -114,7 +114,8 @@ let creature = null;
 
 // ---- 3D monster (Three.js) pilot ----
 const canvas3d = $("fx3d");
-const PILOT_3D = new Set(["blob", "beast", "eyeball"]);
+const PILOT_3D = new Set(["blob", "multihead", "octopus", "beast", "fish", "bird", "worm", "alien",
+  "crab", "dragon", "eyeball", "jelly", "virus", "bacteria", "snake", "scorpion", "dino", "cell"]);
 let m3dMod = null;
 let m3dState = "none";          // none | loading | ready | failed
 function dnaSnapshot() { return { base, parts, creature, menace, voice: { loud: aggLoud, rough: aggRough, bright: aggBright } }; }
@@ -1587,7 +1588,7 @@ function drawSnake(cx,cy,rx,ry,R,hue,m,seed,t,cr){
     ctx.beginPath();ctx.moveTo(fx-fw*.4,fangY);ctx.lineTo(fx+fw*.4,fangY);ctx.lineTo(fx+fw*.1,fangY+flen);ctx.lineTo(fx,fangY+flen+fw*.18);ctx.lineTo(fx-fw*.1,fangY+flen);ctx.closePath();ctx.fill();ctx.stroke();
     // giftdråber
     for(let d=0;d<3;d++){
-      const dp=((t/400+d*.4+i*.7)%1);
+      const dp=((t/400+d*.4+(s>0?0.7:0))%1);
       const dx=fx+s*R*.02*d,dy=fangY+flen+dp*R*.35;
       ctx.save();
       ctx.shadowColor=`hsl(${(hue+120)%360},85%,55%)`;ctx.shadowBlur=8;

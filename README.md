@@ -71,7 +71,7 @@
 | Face scanning | MediaPipe FaceLandmarker (on-device WASM) |
 | Audio analysis | Web Audio API (RMS · spectral centroid · onsets) |
 | Voice recognition | Web Speech API (`en-US` / `da-DK`) |
-| Monster rendering | **3D Three.js / WebGL** (blob · beast · eyeball) + HTML Canvas 2D for the other archetypes |
+| Monster rendering | **3D Three.js / WebGL** — all 18 archetypes, voice/face-reactive (cute → terrifying) with teeth, drool, varied eyes, hair & spikes |
 | Reveal effect | SVG conic-gradient + CSS glitch animation |
 | Hover effects | 3 random: slime-wobble · electric glitch · monster pulse |
 | Deployment | GitHub → Vercel (auto) |
