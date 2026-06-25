@@ -71,11 +71,11 @@
 | Face scanning | MediaPipe FaceLandmarker (on-device WASM) |
 | Audio analysis | Web Audio API (RMS · spectral centroid · onsets) |
 | Voice recognition | Web Speech API (`en-US` / `da-DK`) |
-| Monster rendering | HTML Canvas 2D + goo-filter (`blur + contrast`) |
+| Monster rendering | **3D Three.js / WebGL** (blob · beast · eyeball) + HTML Canvas 2D for the other archetypes |
 | Reveal effect | SVG conic-gradient + CSS glitch animation |
 | Hover effects | 3 random: slime-wobble · electric glitch · monster pulse |
 | Deployment | GitHub → Vercel (auto) |
-| Dependencies | **None** — one HTML file + one JS file |
+| Dependencies | No build step — **Three.js** is loaded straight from a CDN (like MediaPipe) for the 3D monsters |
 
 ---
 
@@ -104,6 +104,7 @@ python3 -m http.server 8000
 Monster-Builder/
 ├── index.html                 ← HTML + CSS (layout, animations, fonts)
 ├── app.js                     ← All JavaScript (logic, canvas, speech, audio)
+├── monster3d.js               ← 3D Pixar-style monster renderer (Three.js / WebGL)
 ├── monster-builder-splash.png ← Splash logo with slime effect
 ├── monster.png                ← Favicon
 └── README.md

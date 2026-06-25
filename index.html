@@ -70,6 +70,7 @@
              animation:spin 8s linear infinite; }
   #revealBg.on{ display:block; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
+  canvas#fx3d{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; }
   canvas#fx{ position:absolute; inset:0; width:100%; height:100%; }
   #count{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center;
           justify-content:center; gap:6px; pointer-events:none; padding:0; }
@@ -239,6 +240,7 @@
   <div id="splashWrap"><img id="splashImg" src="monster-builder-splash.png" alt="Monster Builder"></div>
   <div id="magic">
     <div id="revealBg"></div>
+    <canvas id="fx3d"></canvas>
     <canvas id="fx"></canvas>
     <div id="glitch"></div>
     <div id="camPanel" class="panel" style="display:none">

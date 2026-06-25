@@ -112,6 +112,24 @@ let aggBright = 0.5, aggLoud = 0.5, aggRough = 0.3, aggN = 0;
 let menace = 0.5;
 let creature = null;
 
+// ---- 3D monster (Three.js) pilot ----
+const canvas3d = $("fx3d");
+const PILOT_3D = new Set(["blob", "beast", "eyeball"]);
+let m3dMod = null;
+let m3dState = "none";          // none | loading | ready | failed
+function dnaSnapshot() { return { base, parts, creature, menace }; }
+function ensure3D() {
+  if (m3dState !== "none") return;
+  m3dState = "loading";
+  import("./monster3d.js").then(mod => {
+    m3dMod = mod; mod.init(canvas3d); mod.resize(W, H); m3dState = "ready";
+  }).catch(e => { console.warn("3D monster load failed → 2D fallback", e); m3dState = "failed"; });
+}
+function hide3D() {
+  if (canvas3d) canvas3d.style.display = "none";
+  if (m3dState === "ready" && m3dMod) m3dMod.clear();
+}
+
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const invlerp = (a, b, v) => clamp((v - a) / (b - a), 0, 1);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -143,6 +161,7 @@ function sizeStage(full) {
   if (full) { W = Math.round(window.innerWidth); H = Math.round(window.innerHeight); }
   else { W = 700; H = 520; }
   setupCanvas();
+  if (m3dState === "ready" && m3dMod) m3dMod.resize(W, H);
 }
 
 // ---------------- model ----------------
@@ -329,6 +348,7 @@ function startRound() {
   againBtn.classList.remove("float");
   againBtn.style.display = "none";
   countEl.style.display = "none";
+  hide3D();
   sizeStage(false);
 
   // Fejlhåndtering: stream er lukket (meget sjælden) — fuld genstart
@@ -494,6 +514,7 @@ function reveal() {
   // hvor "farligt": jo mere barnet broelede + jo ruere lyd, jo vildere monster
   menace = clamp(aggLoud * 0.7 + aggRough * 0.7, 0, 1);
   creature = buildCreature();
+  if (PILOT_3D.has(creature.type)) ensure3D();
   for (let i = 0; i < 220; i++) {
     confetti.push({
       x: Math.random() * W,
@@ -1874,35 +1895,49 @@ function drawMonsterBig(t){
   const rx=R*Math.sqrt(aspect)*pop,ry=R/Math.sqrt(aspect)*pop;
   const hue=base.hue,seed=base.gap*7,m=menace,cr=creature;
 
-  ctx.fillStyle="rgba(0,0,0,.28)";
-  ctx.beginPath();ctx.ellipse(cx,cy+ry*1.02,rx*.95,ry*.16,0,0,Math.PI*2);ctx.fill();
+  // 3D pilot path: blob / beast / eyeball render as real Three.js monsters.
+  // While the module is still loading (or if it failed) we keep the 2D look,
+  // so the reveal is never blank.
+  const want3D = PILOT_3D.has(cr.type);
+  if (want3D) ensure3D();
+  if (want3D && m3dState === "ready") {
+    if (canvas3d.style.display !== "block") canvas3d.style.display = "block";
+    m3dMod.build(dnaSnapshot());
+    m3dMod.render(t, prog, menace);
+    // confetti still overlays below — 3D draws its own contact shadow
+  } else {
+    if (canvas3d.style.display !== "none") canvas3d.style.display = "none";
 
-  ctx.save();
-  ctx.translate(cx,cy+(1-pop)*70);
-  const idle=1+Math.sin(t/600)*.02;
-  ctx.scale(idle,2-idle);
-  ctx.translate(-cx,-cy);
+    ctx.fillStyle="rgba(0,0,0,.28)";
+    ctx.beginPath();ctx.ellipse(cx,cy+ry*1.02,rx*.95,ry*.16,0,0,Math.PI*2);ctx.fill();
 
-  if(cr.type==="octopus")      drawOctopus(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="multihead") drawMultihead(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="beast")   drawBeast(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="fish")    drawFish(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="bird")    drawBird(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="worm")    drawWorm(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="alien")   drawAlien(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="crab")    drawCrab(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="dragon")  drawDragon(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="eyeball") drawEyeball(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="jelly")   drawJelly(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="virus")   drawVirus(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="bacteria")drawBacteria(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="snake")   drawSnake(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="scorpion")drawScorpion(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="dino")    drawDino(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else if(cr.type==="cell")    drawCell(cx,cy,rx,ry,R,hue,m,seed,t,cr);
-  else                          drawBlob(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    ctx.save();
+    ctx.translate(cx,cy+(1-pop)*70);
+    const idle=1+Math.sin(t/600)*.02;
+    ctx.scale(idle,2-idle);
+    ctx.translate(-cx,-cy);
 
-  ctx.restore();
+    if(cr.type==="octopus")      drawOctopus(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="multihead") drawMultihead(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="beast")   drawBeast(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="fish")    drawFish(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="bird")    drawBird(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="worm")    drawWorm(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="alien")   drawAlien(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="crab")    drawCrab(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="dragon")  drawDragon(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="eyeball") drawEyeball(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="jelly")   drawJelly(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="virus")   drawVirus(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="bacteria")drawBacteria(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="snake")   drawSnake(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="scorpion")drawScorpion(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="dino")    drawDino(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else if(cr.type==="cell")    drawCell(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+    else                          drawBlob(cx,cy,rx,ry,R,hue,m,seed,t,cr);
+
+    ctx.restore();
+  }
 
   for(let k=confetti.length-1;k>=0;k--){
     const c=confetti[k];
@@ -2059,3 +2094,26 @@ splashImg.addEventListener("mouseleave", () => splashImg.classList.remove(...SPL
 splashWrap.style.display = "flex";
 applyLang();
 requestAnimationFrame(mainLoop);
+
+// ---- DEV: ?type=blob|beast|eyeball|dragon... jumps straight to a reveal with
+// synthetic DNA so the 3D look can be inspected without camera + mic.
+(function debugReveal() {
+  const q = new URLSearchParams(location.search);
+  const forced = q.get("type");
+  if (!forced) return;
+  const num = (k, d) => { const v = parseFloat(q.get(k)); return Number.isFinite(v) ? v : d; };
+  base.body = num("body", 0.5); base.eye = 0.5; base.gap = 0.5;
+  base.mouth = 0.6; base.hue = num("hue", 200); base.captured = true;
+  menace = num("menace", 0.5);
+  parts.length = 0;
+  creature = buildCreature();
+  creature.type = forced;
+  if (PILOT_3D.has(forced)) ensure3D();
+  splashWrap.style.display = "none";
+  startBtn.style.display = "none";
+  magic.classList.add("full");
+  revealBg.classList.add("on");
+  sizeStage(true);
+  revealStart = performance.now();
+  state = "reveal";
+})();
