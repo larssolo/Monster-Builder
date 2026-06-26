@@ -13,38 +13,57 @@
   *{ box-sizing:border-box; }
   body{
     margin:0; height:100dvh; overflow:hidden; color:var(--ink); font-family:"Nunito",sans-serif;
-    background:#070b09;
+    background:#000508;
     display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:5px 16px 10px;
   }
 
   /* ---------- monster-hule baggrund ---------- */
   #cave{ position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;
     background:
-      radial-gradient(620px 420px at 50% 88%, rgba(255,150,60,.22) 0%, transparent 62%),
-      radial-gradient(900px 600px at 50% 38%, #14302a 0%, transparent 60%),
-      radial-gradient(700px 700px at 12% 8%, #1a2740 0%, transparent 55%),
-      radial-gradient(700px 700px at 88% 12%, #261a3a 0%, transparent 55%),
-      radial-gradient(1200px 800px at 50% 120%, #0c1a16 0%, #070b09 70%); }
+      radial-gradient(600px 320px at 50% 102%, rgba(0,220,180,.22) 0%, transparent 62%),
+      radial-gradient(360px 240px at 18% 84%, rgba(0,150,200,.12) 0%, transparent 55%),
+      radial-gradient(360px 240px at 82% 80%, rgba(20,80,220,.10) 0%, transparent 55%),
+      radial-gradient(900px 500px at 50% 45%, rgba(0,20,35,.95) 0%, transparent 72%),
+      radial-gradient(700px 700px at 5%  5%,  #00040c 0%, transparent 55%),
+      radial-gradient(700px 700px at 95% 5%,  #00030c 0%, transparent 55%),
+      radial-gradient(1400px 900px at 50% 115%, #001018 0%, #000508 70%); }
+  #cave::before{ content:""; position:absolute; inset:0; pointer-events:none;
+    opacity:.28; mix-blend-mode:screen;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size:260px 260px;
+    animation:grain .1s steps(1) infinite; }
+  @keyframes grain{
+    0%  { background-position:  0%   0%; }
+    11% { background-position: 22%  31%; }
+    22% { background-position:-18%  12%; }
+    33% { background-position: 33% -22%; }
+    44% { background-position:-12%  27%; }
+    55% { background-position: 28% -14%; }
+    66% { background-position:-24%  18%; }
+    77% { background-position: 14%  -8%; }
+    88% { background-position: -6%  22%; }
+  }
   #cave::after{ content:""; position:absolute; inset:0;
-    background:radial-gradient(120% 90% at 50% 50%, transparent 52%, rgba(0,0,0,.6) 100%); }
+    background:radial-gradient(140% 100% at 50% 50%, transparent 38%, rgba(0,0,0,.92) 100%); }
   .stal{ position:absolute; top:0; left:0; right:0; height:160px;
-    background:linear-gradient(180deg,#1d2b25 0%,#0e1814 100%);
+    background:linear-gradient(180deg,#000508 0%,#001018 60%,#000a10 100%);
     clip-path:polygon(0 0,100% 0,100% 26%,95% 78%,90% 34%,84% 96%,77% 40%,70% 70%,62% 30%,55% 88%,48% 38%,41% 64%,34% 30%,27% 100%,20% 42%,13% 72%,6% 32%,0 30%);
-    filter:drop-shadow(0 6px 6px rgba(0,0,0,.4)); }
+    filter:drop-shadow(0 8px 20px rgba(0,180,160,.18)); }
   .ground{ position:absolute; bottom:0; left:0; right:0; height:150px;
-    background:linear-gradient(0deg,#101c17 0%,#16271f 100%);
-    clip-path:polygon(0 100%,100% 100%,100% 44%,92% 70%,85% 40%,76% 64%,66% 36%,58% 60%,50% 32%,42% 58%,33% 38%,24% 66%,15% 40%,8% 70%,0 46%); }
+    background:linear-gradient(0deg,#000508 0%,#001018 100%);
+    clip-path:polygon(0 100%,100% 100%,100% 44%,92% 70%,85% 40%,76% 64%,66% 36%,58% 60%,50% 32%,42% 58%,33% 38%,24% 66%,15% 40%,8% 70%,0 46%);
+    box-shadow:0 -6px 36px rgba(0,200,180,.10); }
   .crystal{ position:absolute; width:26px;
-    background:linear-gradient(160deg,rgba(255,255,255,.85),var(--cc,#52f0b0) 45%,rgba(0,0,0,.2));
-    transform:rotate(var(--cr,8deg)); box-shadow:0 0 22px 4px var(--cc,#52f0b0);
+    background:linear-gradient(160deg,rgba(180,255,245,.80),var(--cc,#00d8c8) 45%,rgba(0,0,0,.25));
+    transform:rotate(var(--cr,8deg)); box-shadow:0 0 28px 7px var(--cc,#00d8c8);
     clip-path:polygon(50% 0,100% 30%,80% 100%,20% 100%,0 30%); opacity:.9;
     animation:cpulse 3.4s ease-in-out infinite; }
-  @keyframes cpulse{ 0%,100%{ filter:brightness(.8); } 50%{ filter:brightness(1.35); } }
+  @keyframes cpulse{ 0%,100%{ filter:brightness(.75); } 50%{ filter:brightness(1.4); } }
   .spore{ position:absolute; width:6px; height:6px; border-radius:50%;
-    background:var(--cc,#7ef0c0); box-shadow:0 0 12px 3px var(--cc,#7ef0c0);
+    background:var(--cc,#20e8d0); box-shadow:0 0 14px 3px var(--cc,#20e8d0);
     opacity:0; animation:float 9s linear infinite; }
   @keyframes float{ 0%{ transform:translateY(0) scale(.6); opacity:0; }
-    15%{ opacity:.8; } 85%{ opacity:.7; } 100%{ transform:translateY(-260px) scale(1); opacity:0; } }
+    15%{ opacity:.9; } 85%{ opacity:.75; } 100%{ transform:translateY(-260px) scale(1); opacity:0; } }
   h1{ font-family:"Fredoka",sans-serif; font-weight:700; font-size:clamp(30px,5.5vw,48px);
       margin:0 0 4px; text-align:center; letter-spacing:.5px; color:#eafff6;
       text-shadow:0 0 18px rgba(82,240,176,.45), 0 3px 0 rgba(0,0,0,.4); }
@@ -65,9 +84,9 @@
           overflow:hidden; background:transparent; }
   #magic.full{ position:fixed; inset:0; width:100vw; height:100vh; max-width:none; max-height:none; aspect-ratio:auto;
                border-radius:0; border:none; box-shadow:none; z-index:50; }
-  #revealBg{ position:absolute; inset:-45%; display:none; filter:saturate(1.15);
-             background:conic-gradient(from 0deg,#ff4d6d,#ffd24d,#4be3b0,#4d9bff,#b14dff,#ff4d6d);
-             animation:spin 8s linear infinite; }
+  #revealBg{ position:absolute; inset:-45%; display:none; filter:saturate(2.2) brightness(1.1);
+             background:conic-gradient(from 0deg,#000c20,#002040,#001030,#003050,#000820,#001840,#000c20);
+             animation:spin 10s linear infinite; }
   #revealBg.on{ display:block; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
   canvas#fx3d{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; display:none; }
@@ -223,15 +242,15 @@
   <div id="cave">
     <div class="stal"></div>
     <div class="ground"></div>
-    <div class="crystal" style="left:6%;  bottom:60px; --cc:#52f0b0; --cr:-10deg; height:72px;"></div>
-    <div class="crystal" style="left:13%; bottom:48px; --cc:#39d0ff; --cr:14deg;  height:46px;"></div>
-    <div class="crystal" style="right:8%; bottom:64px; --cc:#c06bff; --cr:9deg;   height:80px;"></div>
-    <div class="crystal" style="right:15%;bottom:46px; --cc:#52f0b0; --cr:-8deg;  height:42px;"></div>
-    <div class="crystal" style="left:50%; top:98px;   --cc:#39d0ff; --cr:184deg; height:52px;"></div>
-    <div class="spore" style="left:20%; bottom:120px; --cc:#7ef0c0; animation-delay:0s;"></div>
-    <div class="spore" style="left:44%; bottom:90px;  --cc:#9ad0ff; animation-delay:2.5s;"></div>
-    <div class="spore" style="left:68%; bottom:130px; --cc:#c8a0ff; animation-delay:5s;"></div>
-    <div class="spore" style="left:82%; bottom:100px; --cc:#7ef0c0; animation-delay:7s;"></div>
+    <div class="crystal" style="left:6%;  bottom:60px; --cc:#00d8c8; --cr:-10deg; height:72px;"></div>
+    <div class="crystal" style="left:13%; bottom:48px; --cc:#0090e0; --cr:14deg;  height:46px;"></div>
+    <div class="crystal" style="right:8%; bottom:64px; --cc:#8800ff; --cr:9deg;   height:80px;"></div>
+    <div class="crystal" style="right:15%;bottom:46px; --cc:#00c8e8; --cr:-8deg;  height:42px;"></div>
+    <div class="crystal" style="left:50%; top:98px;   --cc:#0070ff; --cr:184deg; height:52px;"></div>
+    <div class="spore" style="left:20%; bottom:120px; --cc:#00ffd5; animation-delay:0s;"></div>
+    <div class="spore" style="left:44%; bottom:90px;  --cc:#40b0ff; animation-delay:2.5s;"></div>
+    <div class="spore" style="left:68%; bottom:130px; --cc:#b060ff; animation-delay:5s;"></div>
+    <div class="spore" style="left:82%; bottom:100px; --cc:#00ffcc; animation-delay:7s;"></div>
   </div>
   <h1 style="display:none">Monster Builder</h1>
   <p id="tagline" class="tag"></p>
