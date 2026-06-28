@@ -72,14 +72,69 @@
   .tag{ color:var(--muted); margin:0 0 9px; text-align:center; max-width:780px; font-size:15px; }
 
   #camPanel{ margin-bottom:16px; }
-  .panel{ background:#271b44; border:2px solid var(--line); border-radius:24px; padding:14px;
-          box-shadow:0 12px 0 rgba(0,0,0,.2); }
-  .plabel{ font-family:"Fredoka",sans-serif; font-weight:600; font-size:12px; text-transform:uppercase;
-           letter-spacing:1.5px; color:var(--muted); margin:2px 4px 10px; text-align:center; }
-  .cam-frame{ width:300px; height:225px; border-radius:16px; overflow:hidden; background:#0e0a1a;
-              border:3px solid var(--mint); animation:scanpulse 1s ease-in-out infinite; }
-  @keyframes scanpulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(75,227,176,.4); } 50%{ box-shadow:0 0 0 7px rgba(75,227,176,0); } }
-  video{ width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+  .panel{ background:rgba(0,12,22,.88); border:1px solid rgba(0,220,180,.25); border-radius:20px; padding:14px;
+          box-shadow:0 0 0 1px rgba(0,220,180,.08), 0 8px 32px rgba(0,0,0,.6), inset 0 1px 0 rgba(0,220,180,.1); backdrop-filter:blur(8px); }
+  .plabel{ font-family:"Courier New",monospace; font-weight:bold; font-size:10px; text-transform:uppercase;
+           letter-spacing:2.5px; color:rgba(0,220,180,.7); margin:0 4px 10px; text-align:center; }
+  .cam-frame{ position:relative; width:280px; height:210px; border-radius:12px; overflow:hidden; background:#000a10;
+              border:1px solid rgba(0,220,180,.4); box-shadow:0 0 0 1px rgba(0,220,180,.12), 0 0 24px rgba(0,220,180,.08); }
+  video{ width:100%; height:100%; object-fit:cover; transform:scaleX(-1); filter:brightness(.9) contrast(1.1) saturate(.7); }
+
+  /* ---- scan overlay (inside .cam-frame) ---- */
+  #scanOverlay{ position:absolute; inset:0; pointer-events:none; z-index:2; }
+  .scan-grid{
+    position:absolute; inset:0;
+    background:linear-gradient(rgba(0,220,180,.045) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(0,220,180,.045) 1px, transparent 1px);
+    background-size:22px 22px; }
+  .scan-line{
+    position:absolute; left:0; right:0; height:2px; top:0%;
+    background:linear-gradient(90deg, transparent 0%, rgba(0,220,180,.05) 5%, rgba(0,220,180,.95) 50%, rgba(0,220,180,.05) 95%, transparent 100%);
+    box-shadow:0 0 10px 4px rgba(0,220,180,.45), 0 0 32px 8px rgba(0,220,180,.12), 0 1px 0 rgba(255,255,255,.12);
+    animation:scanswipe 2.2s cubic-bezier(.4,0,.6,1) infinite; }
+  @keyframes scanswipe{
+    0%   { top:0%; opacity:1; }
+    44%  { top:97%; opacity:1; }
+    50%  { top:97%; opacity:0; }
+    54%  { top:0%; opacity:0; }
+    60%  { opacity:1; }
+    100% { top:0%; opacity:1; } }
+  .scan-corner{ position:absolute; width:16px; height:16px; border:2px solid rgba(0,220,180,.95);
+                box-shadow:0 0 8px rgba(0,220,180,.6); }
+  .sc-tl{ top:8px; left:8px; border-right:none; border-bottom:none;
+          animation:cpulse 2s ease-in-out infinite; }
+  .sc-tr{ top:8px; right:8px; border-left:none; border-bottom:none;
+          animation:cpulse 2s ease-in-out infinite .5s; }
+  .sc-bl{ bottom:8px; left:8px; border-right:none; border-top:none;
+          animation:cpulse 2s ease-in-out infinite 1s; }
+  .sc-br{ bottom:8px; right:8px; border-left:none; border-top:none;
+          animation:cpulse 2s ease-in-out infinite 1.5s; }
+  @keyframes cpulse{ 0%,100%{ opacity:.7; } 50%{ opacity:1; box-shadow:0 0 14px rgba(0,220,180,.9); } }
+  /* crosshair */
+  .scan-xhair{ position:absolute; top:50%; left:50%; width:24px; height:24px;
+               transform:translate(-50%,-50%); opacity:.5; }
+  .scan-xhair::before,.scan-xhair::after{ content:""; position:absolute; background:rgba(0,220,180,.8); }
+  .scan-xhair::before{ left:50%; top:0; bottom:0; width:1px; transform:translateX(-50%); }
+  .scan-xhair::after { top:50%; left:0; right:0; height:1px; transform:translateY(-50%); }
+
+  /* ---- HUD data below video ---- */
+  .scan-hud{ margin-top:9px; display:flex; flex-direction:column; gap:3px;
+             font-family:"Courier New",monospace; font-size:9.5px; letter-spacing:.9px;
+             color:rgba(0,220,180,.75); text-transform:uppercase; }
+  .sh-row{ display:flex; justify-content:space-between; align-items:center; }
+  .sh-label{ color:rgba(0,220,180,.45); }
+  .sh-val{ font-weight:bold; color:rgba(0,220,180,.95); }
+  .sh-blink{ animation:shblink 1.1s steps(1) infinite; }
+  @keyframes shblink{ 50%{ opacity:0; } }
+  .sh-face-ok{ color:#00ffcc !important; text-shadow:0 0 8px rgba(0,255,180,.6); }
+  .sh-face-no{ color:rgba(255,80,80,.8) !important; }
+  .scan-bar{ margin-top:7px; height:3px; background:rgba(0,220,180,.12);
+             border-radius:2px; overflow:hidden;
+             box-shadow:inset 0 0 0 1px rgba(0,220,180,.15); }
+  .scan-bar-fill{ height:100%; width:0%; background:rgba(0,220,180,.9);
+                  box-shadow:0 0 8px rgba(0,220,180,.7); }
+  .scan-bar-fill.go{ animation:scanbarprog var(--scan-ms,3000ms) linear forwards; }
+  @keyframes scanbarprog{ to{ width:100%; } }
 
   #magic{ position:relative; width:100%; max-width:700px; aspect-ratio:700/520; border-radius:26px;
           overflow:hidden; background:transparent; }
@@ -265,7 +320,24 @@
     <div id="glitch"></div>
     <div id="camPanel" class="panel" style="display:none">
       <div id="scanLabel" class="plabel"></div>
-      <div class="cam-frame"><video id="video" playsinline muted></video></div>
+      <div class="cam-frame">
+        <video id="video" playsinline muted></video>
+        <div id="scanOverlay">
+          <div class="scan-grid"></div>
+          <div class="scan-line"></div>
+          <div class="scan-corner sc-tl"></div>
+          <div class="scan-corner sc-tr"></div>
+          <div class="scan-corner sc-bl"></div>
+          <div class="scan-corner sc-br"></div>
+          <div class="scan-xhair"></div>
+        </div>
+      </div>
+      <div class="scan-hud">
+        <div class="sh-row"><span class="sh-label">LANDMARKS</span><span class="sh-val" id="shLm">— pt</span></div>
+        <div class="sh-row"><span class="sh-label">BIOMETRIC</span><span class="sh-val sh-blink" id="shBio">READING…</span></div>
+        <div class="sh-row"><span class="sh-label">DNA LOCK</span><span class="sh-val" id="shDna">0%</span></div>
+        <div class="scan-bar"><div class="scan-bar-fill" id="scanBarFill"></div></div>
+      </div>
     </div>
     <div id="count">
       <div id="shout"></div>

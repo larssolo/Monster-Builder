@@ -88,6 +88,10 @@ const voicePrompt = $("voice-prompt");
 const langBtn = $("langBtn");
 const splashImg = $("splashImg");
 const splashWrap = $("splashWrap");
+const shLm = $("shLm");
+const shBio = $("shBio");
+const shDna = $("shDna");
+const scanBarFill = $("scanBarFill");
 
 let W = 700, H = 520;
 
@@ -369,6 +373,15 @@ function startRound() {
   scanStart = performance.now();
   setPrompt(t("holdFace"));
   status("");
+  // reset + start HUD
+  shLm.textContent = "— pt";
+  shBio.textContent = "READING…";
+  shBio.className = "sh-val sh-blink";
+  shDna.textContent = "0%";
+  scanBarFill.style.setProperty("--scan-ms", SCAN_MS + "ms");
+  scanBarFill.classList.remove("go");
+  void scanBarFill.offsetWidth;   // force reflow to restart animation
+  scanBarFill.classList.add("go");
 }
 
 function finishScan() {
@@ -827,10 +840,25 @@ function mainLoop() {
   const t = performance.now();
 
   if (state === "scanning") {
+    let faceDetected = false;
     if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
       lastVideoTime = video.currentTime;
       const res = faceLandmarker.detectForVideo(video, t);
-      if (res.faceLandmarks && res.faceLandmarks.length) sampleFace(res.faceLandmarks[0]);
+      if (res.faceLandmarks && res.faceLandmarks.length) {
+        sampleFace(res.faceLandmarks[0]);
+        faceDetected = true;
+        const lmCount = res.faceLandmarks[0].length;
+        shLm.textContent = lmCount + " pt";
+      }
+    }
+    const pct = Math.min(100, Math.round((t - scanStart) / SCAN_MS * 100));
+    shDna.textContent = pct + "%";
+    if (faceDetected) {
+      shBio.textContent = "FACE LOCKED";
+      shBio.className = "sh-val sh-face-ok";
+    } else if (shBio.textContent === "READING…" || shBio.className.includes("sh-blink")) {
+      shBio.textContent = "READING…";
+      shBio.className = "sh-val sh-blink";
     }
     if (t - scanStart > SCAN_MS) finishScan();
   }
