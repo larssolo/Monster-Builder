@@ -19,14 +19,15 @@
 
   /* ---------- monster-hule baggrund ---------- */
   #cave{ position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;
+    background-color:#000508;
     background:
-      radial-gradient(600px 320px at 50% 102%, rgba(0,220,180,.22) 0%, transparent 62%),
-      radial-gradient(360px 240px at 18% 84%, rgba(0,150,200,.12) 0%, transparent 55%),
-      radial-gradient(360px 240px at 82% 80%, rgba(20,80,220,.10) 0%, transparent 55%),
-      radial-gradient(900px 500px at 50% 45%, rgba(0,20,35,.95) 0%, transparent 72%),
-      radial-gradient(700px 700px at 5%  5%,  #00040c 0%, transparent 55%),
-      radial-gradient(700px 700px at 95% 5%,  #00030c 0%, transparent 55%),
-      radial-gradient(1400px 900px at 50% 115%, #001018 0%, #000508 70%); }
+      radial-gradient(80% 36% at 50% 108%, rgba(0,220,180,.22) 0%, transparent 62%),
+      radial-gradient(48% 30% at 14% 88%, rgba(0,150,200,.12) 0%, transparent 55%),
+      radial-gradient(48% 30% at 86% 84%, rgba(20,80,220,.10) 0%, transparent 55%),
+      radial-gradient(120% 65% at 50% 45%, rgba(0,20,35,.95) 0%, transparent 72%),
+      radial-gradient(95% 85% at 2%   2%, #00040c 0%, transparent 55%),
+      radial-gradient(95% 85% at 98%  2%, #00030c 0%, transparent 55%),
+      radial-gradient(220% 130% at 50% 118%, #001018 0%, #000508 65%); }
   #cave::before{ content:""; position:absolute; inset:0; pointer-events:none;
     opacity:.28; mix-blend-mode:screen;
     background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -44,7 +45,7 @@
     88% { background-position: -6%  22%; }
   }
   #cave::after{ content:""; position:absolute; inset:0;
-    background:radial-gradient(140% 100% at 50% 50%, transparent 38%, rgba(0,0,0,.92) 100%); }
+    background:radial-gradient(160% 120% at 50% 50%, transparent 35%, rgba(0,0,0,.94) 100%); }
   .stal{ position:absolute; top:0; left:0; right:0; height:160px;
     background:linear-gradient(180deg,#000508 0%,#001018 60%,#000a10 100%);
     clip-path:polygon(0 0,100% 0,100% 26%,95% 78%,90% 34%,84% 96%,77% 40%,70% 70%,62% 30%,55% 88%,48% 38%,41% 64%,34% 30%,27% 100%,20% 42%,13% 72%,6% 32%,0 30%);
