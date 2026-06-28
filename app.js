@@ -57,7 +57,7 @@ const TRANSLATIONS = {
 
 let lang = (() => {
   const saved = localStorage.getItem("mb-lang");
-  return (saved || navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en";
+  return saved ? saved : "en";
 })();
 const t = (key) => TRANSLATIONS[lang][key];
 
