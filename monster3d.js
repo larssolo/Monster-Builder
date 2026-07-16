@@ -284,17 +284,20 @@ function makeMouth(width, danger, teeth, hue) {
     const upper = row === 0;
     for (let i = 0; i < n; i++) {
       const fx = n === 1 ? 0 : (i / (n - 1) - 0.5) * 2;        // -1..1
-      const arc = (1 - fx * fx) * mh * 0.3;
       const canine = Math.abs(fx) > 0.55 ? 1.35 : 1;           // longer fangs at the corners
-      // capped so a fang can never cross the opening and poke out the other
-      // lip; the lower row stays shorter so the dark maw shows between rows
-      const tl = Math.min(lerp(mh * 0.5, mh * 1.5, danger) * canine, mh * (upper ? 0.9 : 0.6));
+      // the lip ring is an ELLIPSE: at this tooth's x the lip sits at ±lipY,
+      // far below ±mh near the corners — roots must follow that curve or the
+      // corner teeth poke out over the lips
+      const lipY = mh * Math.sqrt(Math.max(0.05, 1 - 0.82 * 0.82 * fx * fx));
+      // capped so a fang can never cross the local opening; the lower row
+      // stays shorter so the dark maw shows between the rows
+      const tl = Math.min(lerp(mh * 0.5, mh * 1.5, danger) * canine, lipY * (upper ? 1.2 : 0.8));
       const br = lerp(mw * 0.14, mw * 0.07, danger);
       const tooth = new THREE.Mesh(new THREE.ConeGeometry(br, tl, 14), tMat);
-      const gum = upper ? (mh - arc) : (-mh + arc);
+      const gum = upper ? lipY : -lipY;
       // rooted just inside the lip's inner edge and set back into the maw so
       // the teeth grow from inside the mouth instead of sitting on the lips
-      const sink = mh * 0.12;
+      const sink = mh * 0.14;
       tooth.position.set(fx * mw * 0.82, gum + (upper ? -sink - tl / 2 : sink + tl / 2), 0.05);
       tooth.rotation.x = upper ? Math.PI : 0;                  // upper teeth point down
       (upper ? group : jaw).add(tooth);
