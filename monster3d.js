@@ -259,8 +259,9 @@ function makeMouth(width, danger, teeth, hue) {
 
   const inMat = new THREE.MeshStandardMaterial({ color: 0x37060e, roughness: 0.7 });
   if (danger > 0.5) { inMat.emissive = new THREE.Color(0x8a0d1a); inMat.emissiveIntensity = (danger - 0.5) * 0.9; }
+  // flat dark dish — must sit BEHIND the teeth so they read as inside the mouth
   const maw = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), inMat);
-  maw.scale.set(mw, mh, 0.45); maw.position.z = -0.04;
+  maw.scale.set(mw, mh, 0.1); maw.position.z = -0.06;
   group.add(maw);
 
   const lip = new THREE.Mesh(new THREE.TorusGeometry(1, 0.12, 10, 28), bodyMat(hue, Math.min(1, danger + 0.15)));
@@ -273,23 +274,28 @@ function makeMouth(width, danger, teeth, hue) {
 
   const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18),
     new THREE.MeshStandardMaterial({ color: 0xb43050, roughness: 0.5 }));
-  tongue.scale.set(mw * 0.62, mh * 0.34, 0.3);
-  tongue.position.set(0, -mh * 0.45, 0.12);
+  tongue.scale.set(mw * 0.62, mh * 0.34, 0.2);
+  tongue.position.set(0, -mh * 0.45, 0.04);
   jaw.add(tongue);
 
   const tMat = toothMat(danger);
-  const n = Math.max(3, teeth | 0);
+  const n = Math.max(3, Math.min(teeth | 0, 9));               // a wall of teeth hides the maw
   for (let row = 0; row < 2; row++) {
     const upper = row === 0;
     for (let i = 0; i < n; i++) {
       const fx = n === 1 ? 0 : (i / (n - 1) - 0.5) * 2;        // -1..1
       const arc = (1 - fx * fx) * mh * 0.3;
-      const canine = Math.abs(fx) > 0.55 ? 1.5 : 1;            // longer fangs at the corners
-      const tl = lerp(mh * 0.5, mh * 1.7, danger) * canine;
+      const canine = Math.abs(fx) > 0.55 ? 1.35 : 1;           // longer fangs at the corners
+      // capped so a fang can never cross the opening and poke out the other
+      // lip; the lower row stays shorter so the dark maw shows between rows
+      const tl = Math.min(lerp(mh * 0.5, mh * 1.5, danger) * canine, mh * (upper ? 0.9 : 0.6));
       const br = lerp(mw * 0.14, mw * 0.07, danger);
       const tooth = new THREE.Mesh(new THREE.ConeGeometry(br, tl, 14), tMat);
       const gum = upper ? (mh - arc) : (-mh + arc);
-      tooth.position.set(fx * mw * 0.82, gum + (upper ? -tl / 2 : tl / 2), 0.16);
+      // rooted just inside the lip's inner edge and set back into the maw so
+      // the teeth grow from inside the mouth instead of sitting on the lips
+      const sink = mh * 0.12;
+      tooth.position.set(fx * mw * 0.82, gum + (upper ? -sink - tl / 2 : sink + tl / 2), 0.05);
       tooth.rotation.x = upper ? Math.PI : 0;                  // upper teeth point down
       (upper ? group : jaw).add(tooth);
     }
@@ -298,7 +304,7 @@ function makeMouth(width, danger, teeth, hue) {
   const drool = makeDrool(mw, -mh * 0.92, Math.round(lerp(0, 5, clamp((danger - 0.28) / 0.72, 0, 1))), danger);
   if (drool) jaw.add(drool);
 
-  jaws.push({ group: jaw, amt: lerp(0.015, 0.11, danger) });
+  jaws.push({ group: jaw, amt: lerp(0.01, 0.05, danger) });   // subtle growl — must never push the teeth out past the lip
   return { group, jaw };
 }
 
