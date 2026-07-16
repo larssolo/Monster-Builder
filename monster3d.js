@@ -13,6 +13,8 @@ let eyes = [];               // [{ group, lid, lookTarget }]
 let drools = [];             // [{ mesh, baseY, len, phase }] dripping saliva
 let hairs = [];              // [{ mesh, rest, phase }] swaying hair tufts
 let jaws = [];               // [{ group, amt }] lower-jaw groups for growl
+let wobbles = [];            // [{ mesh, rest, phase }] fleshy body jiggle
+let puddles = [];            // [{ mesh, phase }] slime pool under the monster
 let builtSig = null;         // signature of the DNA we last built
 let _w = 0, _h = 0;
 
@@ -36,16 +38,17 @@ function lump(x, y, z, seed) {
        + Math.sin((x + y + z) * 1.1 + seed * 0.5) * 0.28;
 }
 
-// soft plush body material that darkens, saturates and starts to glow with danger
+// wet, mucus-coated body material: strong glossy clearcoat over a soft fleshy
+// base so the whole creature reads slick and alive; darkens + glows with danger
 function bodyMat(hue, danger) {
   const light = clamp(0.58 - danger * 0.26, 0.22, 0.62);
   const sat = clamp(0.55 + danger * 0.3, 0.3, 0.95);
   const col = hsl(hue, sat, light);
   const m = new THREE.MeshPhysicalMaterial({
-    color: col, roughness: clamp(0.6 - danger * 0.2, 0.3, 0.7), metalness: 0,
-    clearcoat: 0.3, clearcoatRoughness: 0.5,
-    sheen: 0.7, sheenRoughness: 0.85, sheenColor: hsl(hue, 0.6, 0.78),
-    envMapIntensity: 0.9
+    color: col, roughness: clamp(0.42 - danger * 0.14, 0.2, 0.5), metalness: 0,
+    clearcoat: 0.85, clearcoatRoughness: 0.22,
+    sheen: 0.55, sheenRoughness: 0.6, sheenColor: hsl(hue, 0.6, 0.78),
+    envMapIntensity: 1.25
   });
   if (danger > 0.55) {                       // faint hellish under-glow when furious
     m.emissive = hsl((hue + 6) % 360, 0.9, 0.5);
@@ -54,9 +57,22 @@ function bodyMat(hue, danger) {
   return m;
 }
 
-// a blobby icosphere displaced by noise; returns a Mesh centred on origin
+// glossy translucent slime film wrapped around a body mesh (mucus layer)
+function slimeShellMat(baseColor) {
+  const c = {};
+  baseColor.getHSL(c);
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color().setHSL((c.h + 0.045) % 1, Math.min(1, c.s * 0.9), Math.min(0.85, c.l + 0.2)),
+    roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05,
+    transparent: true, opacity: 0.22, depthWrite: false, envMapIntensity: 1.7
+  });
+}
+
+// a blobby noise-displaced sphere; returns a Mesh centred on origin.
+// NB: SphereGeometry (indexed) — IcosahedronGeometry w/ detail>0 is non-indexed
+// in three.js, which forces flat shading and the old "low poly" facet look.
 function blobMesh(radius, seed, lumpAmt, mat) {
-  const geo = new THREE.IcosahedronGeometry(radius, 5);
+  const geo = new THREE.SphereGeometry(radius, 64, 48);
   const pos = geo.attributes.position;
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
@@ -69,6 +85,15 @@ function blobMesh(radius, seed, lumpAmt, mat) {
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = true;
+  // fleshy idle jiggle, animated in render()
+  wobbles.push({ mesh, rest: null, phase: (seed * 13.7) % (Math.PI * 2) });
+  // wet mucus film hugging the body (skip translucent bodies like the cell membrane)
+  if (!mat.transparent && mat.color) {
+    const shell = new THREE.Mesh(geo, slimeShellMat(mat.color));
+    shell.scale.setScalar(1.02);
+    shell.renderOrder = 2;
+    mesh.add(shell);
+  }
   return mesh;
 }
 
@@ -134,7 +159,7 @@ function makeEye(r, irisHue, opts) {
 // horn / spike cone (bone coloured)
 function horn(len, baseR, hue) {
   const m = new THREE.Mesh(
-    new THREE.ConeGeometry(baseR, len, 18),
+    new THREE.ConeGeometry(baseR, len, 24),
     new THREE.MeshStandardMaterial({ color: hsl(hue, 0.3, 0.82), roughness: 0.6 })
   );
   m.castShadow = true;
@@ -142,7 +167,7 @@ function horn(len, baseR, hue) {
 }
 
 function limb(len, r, mat) {
-  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 6, 14), mat);
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 10, 24), mat);
   m.castShadow = true;
   return m;
 }
@@ -165,15 +190,64 @@ function makeDrool(mw, anchorY, count, danger) {
     const x = (count === 1 ? 0 : (i / (count - 1) - 0.5) * 2) * mw * 0.7;
     const len = lerp(0.14, 0.5, danger) * (0.7 + Math.random() * 0.6);
     const strand = new THREE.Group();
-    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.032, 1, 7), mat); // thin at top, fatter low
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.032, 1, 12), mat); // thin at top, fatter low
     str.position.y = -0.5; strand.add(str);                                          // spans 0 .. -1
-    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 12), mat);
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 14), mat);
     bead.scale.set(1, 1.3, 1); bead.position.y = -1.0; strand.add(bead);             // droplet at the tip
     strand.position.set(x, anchorY, 0.18);
     drools.push({ mesh: strand, bead, len, phase: Math.random() * Math.PI * 2 });
     group.add(strand);
   }
   return group;
+}
+
+// thick slime globs oozing down the body, hanging drips included; reuses the
+// drool animation loop so every strand stretches and drips independently
+function makeSlimeDrips(hue, count, danger) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: hsl((hue + 18) % 360, 0.65, 0.62), roughness: 0.04, metalness: 0,
+    transmission: 0.7, thickness: 0.4, ior: 1.33, transparent: true, opacity: 0.85, depthWrite: false
+  });
+  for (let i = 0; i < count; i++) {
+    // anchored just inside the lower body so the strand emerges from the belly
+    const a = (i / Math.max(1, count - 1) - 0.5) * Math.PI * 1.4;
+    const px = Math.sin(a) * 0.52, pz = Math.cos(a) * 0.48 + 0.12;
+    const py = -0.45 - Math.random() * 0.3;
+    const strand = new THREE.Group();
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.05, 1, 10), mat);
+    str.position.y = -0.5; strand.add(str);
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.085 + Math.random() * 0.04, 16, 14), mat);
+    bead.scale.set(1, 1.25, 1); bead.position.y = -1.0; strand.add(bead);
+    strand.position.set(px, py, pz);
+    drools.push({ mesh: strand, bead, len: 0.18 + Math.random() * 0.22 + danger * 0.18, phase: Math.random() * Math.PI * 2 });
+    group.add(strand);
+  }
+  return group;
+}
+
+// a glossy slime pool spreading under the monster, pulsing softly in render()
+function makeSlimePuddle(hue, seed) {
+  const pts = [];
+  const N = 44;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    const r = 1 + 0.16 * Math.sin(a * 3 + seed) + 0.11 * Math.sin(a * 5 + seed * 2.3);
+    pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r));
+  }
+  const geo = new THREE.ShapeGeometry(new THREE.Shape(pts));
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: hsl((hue + 14) % 360, 0.7, 0.5), roughness: 0.06, metalness: 0,
+    clearcoat: 1, clearcoatRoughness: 0.08,
+    transparent: true, opacity: 0.4, depthWrite: false, envMapIntensity: 1.5
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = -1.36;
+  m.scale.setScalar(1.12);
+  m.renderOrder = 1;
+  puddles.push({ mesh: m, phase: seed % (Math.PI * 2) });
+  return m;
 }
 
 // snarling mouth on the front face: dark maw + teeth (nubs->fangs) + tongue + drool.
@@ -185,7 +259,7 @@ function makeMouth(width, danger, teeth, hue) {
 
   const inMat = new THREE.MeshStandardMaterial({ color: 0x37060e, roughness: 0.7 });
   if (danger > 0.5) { inMat.emissive = new THREE.Color(0x8a0d1a); inMat.emissiveIntensity = (danger - 0.5) * 0.9; }
-  const maw = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 20), inMat);
+  const maw = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), inMat);
   maw.scale.set(mw, mh, 0.45); maw.position.z = -0.04;
   group.add(maw);
 
@@ -197,7 +271,7 @@ function makeMouth(width, danger, teeth, hue) {
   const jaw = new THREE.Group();
   group.add(jaw);
 
-  const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12),
+  const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18),
     new THREE.MeshStandardMaterial({ color: 0xb43050, roughness: 0.5 }));
   tongue.scale.set(mw * 0.62, mh * 0.34, 0.3);
   tongue.position.set(0, -mh * 0.45, 0.12);
@@ -213,7 +287,7 @@ function makeMouth(width, danger, teeth, hue) {
       const canine = Math.abs(fx) > 0.55 ? 1.5 : 1;            // longer fangs at the corners
       const tl = lerp(mh * 0.5, mh * 1.7, danger) * canine;
       const br = lerp(mw * 0.14, mw * 0.07, danger);
-      const tooth = new THREE.Mesh(new THREE.ConeGeometry(br, tl, 9), tMat);
+      const tooth = new THREE.Mesh(new THREE.ConeGeometry(br, tl, 14), tMat);
       const gum = upper ? (mh - arc) : (-mh + arc);
       tooth.position.set(fx * mw * 0.82, gum + (upper ? -tl / 2 : tl / 2), 0.16);
       tooth.rotation.x = upper ? Math.PI : 0;                  // upper teeth point down
@@ -280,7 +354,7 @@ function makeBrow(side, danger, hue, scl) {
 
 // a tapered limb/tentacle/tail/neck segment (cylinder, axis +y, centred)
 function taper(len, baseR, tipR, mat) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(tipR, baseR, len, 12), mat);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(tipR, baseR, len, 24), mat);
   m.castShadow = true;
   return m;
 }
@@ -384,7 +458,7 @@ function buildBlob(dna) {
   });
   const fy = -1 / sx * 0.92;
   [[-0.45], [0.45]].forEach(([x]) => {
-    const f = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 18), mat);
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 20), mat);
     f.scale.set(1, 0.55, 1.2); f.position.set(x, fy, 0.25); f.castShadow = true; g.add(f);
   });
 
@@ -429,7 +503,7 @@ function buildBeast(dna) {
 
   // ears
   [-1, 1].forEach(s => {
-    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 18), furMat);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.26, 24, 20), furMat);
     ear.position.set(s * 0.55, 0.85, 0.1); ear.scale.set(1, 1.1, 0.6); ear.castShadow = true; g.add(ear);
   });
   // snout + nose
@@ -517,16 +591,16 @@ function buildEyeball(dna) {
 }
 
 // small shared bits used by several builders below
-const glowBall = (r, h) => new THREE.Mesh(new THREE.SphereGeometry(r, 12, 12),
+const glowBall = (r, h) => new THREE.Mesh(new THREE.SphereGeometry(r, 16, 14),
   new THREE.MeshStandardMaterial({ color: hsl(h, 0.9, 0.6), emissive: hsl(h, 0.9, 0.55), emissiveIntensity: 1.2, roughness: 0.4 }));
-const finMesh = (size, mat) => { const f = new THREE.Mesh(new THREE.ConeGeometry(size, size * 1.5, 6), mat); f.scale.z = 0.16; f.castShadow = true; return f; };
+const finMesh = (size, mat) => { const f = new THREE.Mesh(new THREE.ConeGeometry(size, size * 1.5, 14), mat); f.scale.z = 0.16; f.castShadow = true; return f; };
 // a two-pronged pincer claw opening toward +z (palm + upper/lower fingers)
 function pincer(size, danger, mat) {
   const g = new THREE.Group();
-  const palm = new THREE.Mesh(new THREE.SphereGeometry(size * 0.5, 14, 12), mat); palm.scale.set(1, 0.75, 1.25); g.add(palm);
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(size * 0.5, 24, 18), mat); palm.scale.set(1, 0.75, 1.25); g.add(palm);
   const gape = lerp(0.18, 0.5, danger);                          // claws open wider when furious
   [-1, 1].forEach(s => {
-    const f = new THREE.Mesh(new THREE.ConeGeometry(size * 0.22, size * 1.15, 9), mat);
+    const f = new THREE.Mesh(new THREE.ConeGeometry(size * 0.22, size * 1.15, 16), mat);
     f.position.set(0, s * size * 0.26, size * 0.62);
     f.rotation.x = Math.PI / 2 + s * gape;
     g.add(f);
@@ -541,7 +615,7 @@ function buildMultihead(dna) {
   const g = new THREE.Group();
   const body = blobMesh(1.0, seed, 0.13, mat); body.scale.set(1.12, 0.95, 1); g.add(body);
   [[-1.05, 0.36], [1.05, -0.36]].forEach(([x, rz]) => { const a = limb(0.5, 0.2, mat); a.position.set(x, -0.1, 0.1); a.rotation.z = rz; g.add(a); });
-  [-0.45, 0.45].forEach(x => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), mat); f.scale.set(1, 0.5, 1.2); f.position.set(x, -1.0, 0.25); f.castShadow = true; g.add(f); });
+  [-0.45, 0.45].forEach(x => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 20), mat); f.scale.set(1, 0.5, 1.2); f.position.set(x, -1.0, 0.25); f.castShadow = true; g.add(f); });
   const n = creature.heads || 2;
   for (let i = 0; i < n; i++) {
     const fx = n === 1 ? 0 : (i / (n - 1) - 0.5) * (n === 2 ? 0.78 : 1.05);
@@ -576,7 +650,7 @@ function buildOctopus(dna) {
     const tipBase = baseP.clone().addScaledVector(dir, len);
     g.add(placeFrom(taper(len * 0.42, 0.06, 0.02, mat), tipBase, new THREE.Vector3(f * 0.6, -0.2, 1.1), len * 0.42));
     for (let k = 1; k <= 3; k++) {
-      const s = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), suckerMat);
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), suckerMat);
       s.position.copy(baseP).addScaledVector(dir, len * (k / 4)).add(new THREE.Vector3(0, 0, 0.16));
       g.add(s);
     }
@@ -634,7 +708,7 @@ function buildWorm(dna) {
     const f = i / (segs - 1);
     const x = lerp(-0.2, 1.2, f), y = lerp(0.55, -0.9, f) + Math.sin(f * 4) * 0.12, z = lerp(0.3, -0.6, f);
     const r = lerp(0.62, 0.32, f);
-    const s = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 16), mat); s.position.set(x, y, z); s.castShadow = true; g.add(s);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 22), mat); s.position.set(x, y, z); s.castShadow = true; g.add(s);
   }
   const head = new THREE.Group(); head.position.set(-0.25, 0.62, 0.35);
   head.add(blobMesh(0.6, seed, 0.08, mat));
@@ -715,7 +789,7 @@ function buildDragon(dna) {
   if (danger > 0.5) {
     const fmat = new THREE.MeshStandardMaterial({ color: 0xffb030, emissive: 0xff4d00, emissiveIntensity: 1.6, roughness: 0.5, transparent: true, opacity: 0.85 });
     for (let k = 0; k < 3; k++) {
-      const fl = new THREE.Mesh(new THREE.ConeGeometry(0.13 - k * 0.025, 0.55, 8), fmat);
+      const fl = new THREE.Mesh(new THREE.ConeGeometry(0.13 - k * 0.025, 0.55, 12), fmat);
       placeFrom(fl, new THREE.Vector3(-0.95 - k * 0.22, 0.85, 0.55), new THREE.Vector3(-1, -0.12, 0.45), 0.55);
       g.add(fl);
     }
@@ -748,7 +822,7 @@ function buildJelly(dna) {
 function buildVirus(dna) {
   const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
   const g = new THREE.Group();
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 1), mat); core.castShadow = true; g.add(core);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 2), mat); core.castShadow = true; g.add(core);
   const n = 16 + (creature.antennae || 2) * 2;
   const spikeMat = bodyMat((hue + 30) % 360, danger);
   for (let i = 0; i < n; i++) {
@@ -768,7 +842,7 @@ function buildVirus(dna) {
 function buildBacteria(dna) {
   const { base, creature, danger, bright, hue, seed, mat } = dnaBits(dna);
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.4, 8, 20), mat); body.rotation.z = Math.PI / 2; body.castShadow = true; g.add(body);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.4, 12, 28), mat); body.rotation.z = Math.PI / 2; body.castShadow = true; g.add(body);
   // flagella
   const nf = 3 + Math.floor((creature.segments || 4) / 3);
   for (let i = 0; i < nf; i++) {
@@ -804,7 +878,7 @@ function buildSnake(dna) {
       const u = (f - 0.55) / 0.45;
       x = lerp(0.5, 0, u); y = lerp(-0.8, 1.0, u); z = lerp(0.1, 0.55, u);
     }
-    const s = new THREE.Mesh(new THREE.SphereGeometry(lerp(0.36, 0.17, f), 14, 12), mat);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(lerp(0.36, 0.17, f), 22, 18), mat);
     s.position.set(x, y, z); s.castShadow = true; g.add(s);
   }
   const head = new THREE.Group(); head.position.set(0, 1.18, 0.6); head.rotation.x = 0.25;
@@ -841,7 +915,7 @@ function buildScorpion(dna) {
     placeFrom(seg, p, dir, len); g.add(seg);
     p = p.clone().addScaledVector(dir.clone().normalize(), len);
   }
-  const sting = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 10), glowBall(0.01, (hue + 100) % 360).material); sting.material = new THREE.MeshStandardMaterial({ color: hsl((hue + 100) % 360, 0.9, 0.6), emissive: hsl((hue + 100) % 360, 0.9, 0.55), emissiveIntensity: 1.8, roughness: 0.4 });
+  const sting = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 16), glowBall(0.01, (hue + 100) % 360).material); sting.material = new THREE.MeshStandardMaterial({ color: hsl((hue + 100) % 360, 0.9, 0.6), emissive: hsl((hue + 100) % 360, 0.9, 0.55), emissiveIntensity: 1.8, roughness: 0.4 });
   sting.position.copy(p); sting.rotation.x = 2.4; g.add(sting);
   addEyes(g, 3, 0.22, 0.18, 0.95, hue, Math.max(0.5, danger), bright, base, 0.7);
   attachMouth(g, base, danger, 0, 0.0, 0.95, hue, 0.7);
@@ -860,7 +934,7 @@ function buildDino(dna) {
   // thick legs + clawed feet
   [-0.46, 0.46].forEach(x => {
     const l = limb(0.7, 0.26, mat); l.position.set(x, -0.85, 0.15); d.add(l);
-    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 12), mat); foot.scale.set(1, 0.5, 1.5); foot.position.set(x, -1.4, 0.45); foot.castShadow = true; d.add(foot);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.28, 22, 18), mat); foot.scale.set(1, 0.5, 1.5); foot.position.set(x, -1.4, 0.45); foot.castShadow = true; d.add(foot);
     for (let c = -1; c <= 1; c++) { const cl = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.2, 6), clawMat); cl.position.set(x + c * 0.13, -1.46, 0.78); cl.rotation.x = 1.3; d.add(cl); }
   });
   // tiny clawed arms
@@ -903,9 +977,9 @@ function buildCell(dna) {
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2; const dir = new THREE.Vector3(Math.cos(a), Math.sin(a) * 0.9, Math.sin(a * 1.7) * 0.5).normalize();
     const len = lerp(0.45, 0.85, Math.random());
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, len, 6, 12), memMat.clone()); arm.castShadow = true;
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, len, 8, 20), memMat.clone()); arm.castShadow = true;
     g.add(placeFrom(arm, dir.clone().multiplyScalar(0.8), dir, len));
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 12), memMat.clone());
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 16), memMat.clone());
     bulb.position.copy(dir.clone().multiplyScalar(0.8 + len)); bulb.castShadow = true; g.add(bulb);
   }
   // visible nucleus
@@ -1007,6 +1081,10 @@ export function build(dna) {
   disposeMonster();
   const make = BUILDERS[dna.creature.type] || buildBlob;
   monster = make(dna);
+  // every monster is born dripping: slime pool underneath + oozing globs
+  const danger = clamp(dna.menace, 0, 1);
+  monster.add(makeSlimePuddle(dna.base.hue, dna.creature.sn % (Math.PI * 2)));
+  monster.add(makeSlimeDrips(dna.base.hue, 4 + Math.round(danger * 4), danger));
   scene.add(monster);
 }
 
@@ -1014,23 +1092,47 @@ export function render(t, prog, menace) {
   if (!renderer || !monster) return;
   const pop = clamp(easeOutBack(clamp(prog, 0, 1)), 0.02, 1.3);
 
-  // birth pop + idle breathing + gentle turn
-  const breath = 1 + Math.sin(t / 620) * 0.025;
+  // birth pop + squash & stretch breathing (volume-preserving) + gentle turn
+  const breath = Math.sin(t / 620) * 0.03;
   monster.scale.setScalar(pop);
-  monster.scale.y *= breath;
+  monster.scale.y *= 1 + breath;
+  monster.scale.x *= 1 - breath * 0.55;
+  monster.scale.z *= 1 - breath * 0.55;
   monster.position.y = (1 - clamp(prog, 0, 1)) * -1.2 + Math.sin(t / 700) * 0.04;
   monster.rotation.y = Math.sin(t / 1500) * 0.18;
+  monster.rotation.x = Math.sin(t / 2300) * 0.035;
   monster.rotation.z = (menace - 0.5) * 0.1;
+
+  // fleshy jiggle: every organic blob squishes on its own slightly offset beat
+  for (const w of wobbles) {
+    if (!w.rest) w.rest = w.mesh.scale.clone();
+    const s1 = Math.sin(t / 340 + w.phase) * 0.018, s2 = Math.sin(t / 470 + w.phase * 1.7) * 0.018;
+    w.mesh.scale.set(w.rest.x * (1 + s1), w.rest.y * (1 - s1 * 0.7 + s2 * 0.4), w.rest.z * (1 - s2));
+  }
 
   // time-based blink (FPS-independent): mostly open, a quick close every ~3.4s
   const bt = (t + 1700) % 3400;
   const lid = bt < 150 ? Math.max(0.12, Math.abs(Math.cos((bt / 150) * Math.PI))) : 1;
-  const lookX = Math.sin(t / 900) * 0.12, lookY = Math.cos(t / 1300) * 0.06;
+  // darting saccades layered on a slow drift — eyes snap to a new random spot
+  // roughly every 1.3s and hold, like a creature actually watching the room
+  const hash = (n) => { const x = Math.sin(n * 127.1) * 43758.545; return x - Math.floor(x); };
+  const gi = Math.floor(t / 1300), gu = clamp(((t % 1300) / 1300) * 5, 0, 1);
+  const ease = gu * gu * (3 - 2 * gu);
+  const sacX = lerp(hash(gi - 1) - 0.5, hash(gi) - 0.5, ease) * 0.4;
+  const sacY = lerp(hash(gi + 31) - 0.5, hash(gi + 32) - 0.5, ease) * 0.16;
+  const lookX = Math.sin(t / 900) * 0.06 + sacX, lookY = Math.cos(t / 1300) * 0.04 + sacY;
   eyes.forEach(e => {
     e.group.scale.y = lid;
     e.group.rotation.y = lookX;
     e.group.rotation.x = -lookY;
   });
+
+  // slime pool slowly spreading / contracting under the body
+  for (const p of puddles) {
+    const s1 = 1.12 + Math.sin(t / 1100 + p.phase) * 0.05;
+    const s2 = 1.12 + Math.sin(t / 760 + p.phase * 1.9) * 0.05;
+    p.mesh.scale.set(s1, s2, 1);
+  }
 
   // dripping drool: the string stretches/relaxes (anchored at the lip); the
   // droplet swells near the bottom and is counter-scaled so it stays round
@@ -1071,7 +1173,7 @@ function disposeMonster() {
     }
   });
   monster = null;
-  eyes = []; drools = []; hairs = []; jaws = [];
+  eyes = []; drools = []; hairs = []; jaws = []; wobbles = []; puddles = [];
 }
 
 // release the current creature but keep the renderer/scene warm for reuse
