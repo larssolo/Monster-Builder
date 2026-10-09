@@ -8,8 +8,7 @@ real captures of the live site. Both picture and sound are rendered deterministi
 
 | File | What it is |
 |:--|:--|
-| `out/monster-builder-promo-en.mp4` | Final film, English |
-| `out/monster-builder-promo-da.mp4` | Final film, Danish |
+| `out/` (git-ignored) | Rendered films: `monster-builder-promo-{en,da}.mp4` (master, ~9 Mbps) and `-social.mp4` (~5 Mbps) |
 | `film.html` / `film.js` | The film as a frame-by-frame canvas renderer |
 | `m3d.js` | Loads isolated instances of `../monster3d.js` (no change to the site's code) |
 | `music.py` | Score + sound design, synthesized with numpy/scipy on the same beat grid |
@@ -42,7 +41,7 @@ python3 -m http.server 8765 --bind 127.0.0.1 &
 cd promo
 python3 music.py /tmp/score.wav
 node render.mjs --lang en --out /tmp/video_en.mp4          # ~1–2 s/frame with SwiftShader
-ffmpeg -i /tmp/video_en.mp4 -i /tmp/score.wav -c:v copy -c:a aac -b:a 256k -shortest out/monster-builder-promo-en.mp4
+ffmpeg -i /tmp/video_en.mp4 -i /tmp/score.wav -c:v copy -c:a aac -b:a 256k -movflags +faststart -shortest out/monster-builder-promo-en.mp4
 
 # preview single frames
 node render.mjs --lang da --frames 0,300,700 --preview /tmp/preview
