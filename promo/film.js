@@ -104,7 +104,13 @@ function revealText(g, str, x, y, o, p) {
   g.letterSpacing = (o.ls ?? 0) + "px";
   g.textAlign = "left"; g.textBaseline = "alphabetic";
   const chars = [...str], n = chars.length;
-  const total = g.measureText(str).width;
+  let total = g.measureText(str).width;
+  const maxW = o.maxW ?? W - 120;           // keep long (e.g. Danish) lines inside the frame
+  if (total > maxW) {
+    o = { ...o, size: o.size * maxW / total };
+    font(g, o.size, o.weight ?? 600, o.family ?? "Fredoka");
+    total = g.measureText(str).width;
+  }
   const x0 = o.align === "left" ? x : o.align === "right" ? x - total : x - total / 2;
   const spread = o.spread ?? 7;
   let prefix = "";
