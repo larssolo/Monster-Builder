@@ -1,4 +1,4 @@
-// Monster Builder — 9:16 promo film, rendered frame-by-frame (deterministic).
+// Monster Builder — promo film (9:16, or 16:9 with ?format=16x9), rendered frame-by-frame (deterministic).
 // Everything is a pure function of the frame number so render.mjs can step through
 // it and pipe frames to ffmpeg. Timeline is in beats at 70 BPM (see TIMELINE below
 // and music.py, which uses the same beat grid).
@@ -16,9 +16,41 @@ import { loadInstance, makeDNA } from "./m3d.js";
 
 const Q = new URLSearchParams(location.search);
 const LANG = Q.get("lang") === "da" ? "da" : "en";
-const FPS = 30, W = 1080, H = 1920, BPM = 70, BEAT = 60 / BPM, BEATS = 48;
+const LAND = Q.get("format") === "16x9";  // landscape 1920×1080; default is vertical 1080×1920
+const FPS = 30, BPM = 70, BEAT = 60 / BPM, BEATS = 48;
+const W = LAND ? 1920 : 1080, H = LAND ? 1080 : 1920;
 const FRAMES = Math.floor(BEATS * BEAT * FPS);
-const MW = 1080, MH = 1350;           // 3D monster render size
+const MW = LAND ? 1440 : 1080, MH = LAND ? 1080 : 1350;   // 3D monster render size
+
+// Per-format layout. Vertical keeps one centred column; landscape puts the text in a
+// left column (x = 150, inside the 16:9 title-safe area) and the picture on the right.
+const LY = LAND ? {
+  intro: { ex: 960, ey: 420, es: 0.9, l1y: 790, l2y: 905, size: 100 },
+  scan: { cx: 1270, cy: 555, fh: 660, box: { x: 890, y: 150, w: 760, h: 800 },
+    pill: [150, 250], head: [150, 362, 96], sub: [150, 432], left: true, hud: [150, 700, 640], tagL: 760, tagR: W - 140 },
+  roar: { countX: 560, shoutY: 500, numY: 830, readyY: 610, pivotY: 670, potX: 1350, potY: 820, S: 1.75, sc: [0.4, 0.66],
+    rays: [1350, 640], rings: [1350, 660, 700], bg: [1350, 640, 1400], wave: [1000, 1720, 995],
+    pill: [150, 170], head: [150, 282, 84], voice: [150, 352], left: true, eyes: [960, 540, 0.82], sparkY: [60, 960] },
+  reveal: { cx: 1200, cy: 560, pill: [150, 330], head: [150, 470, 112], head2: 590, sub: [150, 668], left: true },
+  roster: { cx: 1250, cy: 540, counter: [150, 650], name: [150, 800], clip: [0, 680, 1060, 170], nameMax: 680, size: 140, left: true },
+  grid: { cols: 6, tw: 320, th: 360, center: 8, snap: 290, t1: [960, 520], t2: [960, 650] },
+  phone: { cx: 1380, py: 545, pw: 420, ph: 894, rise: 700, chipX: 150, chipY: 420, chipDy: 120, left: true },
+  end: { cx: 960, cy: 345, lw: 700, spread: [1500, 760], fs: 240, drip: 120, tag: [700, 60], cta: [815, 480, 116, 56], url: [935, 36], foot: [995, 20] },
+  focus: [1250, 540], toGridScale: 0.3, cave: [200, 180], crystal: [1.6, 1.5]
+} : {
+  intro: { ex: 540, ey: 800, es: 1, l1y: 1190, l2y: 1312, size: 104 },
+  scan: { cx: 540, cy: 880, fh: 690, box: { x: 150, y: 480, w: 780, h: 800 },
+    pill: [540, 250], head: [540, 372, 92], sub: [540, 1600], left: false, hud: [160, 920, 1350], tagL: 92, tagR: W - 92 },
+  roar: { countX: 540, shoutY: 540, numY: 870, readyY: 700, pivotY: 760, potX: 540, potY: 1300, S: 2.1, sc: [0.42, 0.72],
+    rays: [540, 980], rings: [540, 1000, 820], bg: [540, 980, 1300], wave: [110, 970, 1545],
+    pill: [540, 250], head: [540, 372, 88], voice: null, left: false, eyes: [540, 900, 0.82], sparkY: [200, 1700] },
+  reveal: { cx: 540, cy: 1000, pill: [540, 250], head: [540, 372, 92], head2: null, sub: [540, 1640], left: false },
+  roster: { cx: 540, cy: 860, counter: [540, 1425], name: [540, 1566], clip: [0, 1436, W, 170], nameMax: W - 120, size: null, left: false },
+  grid: { cols: 3, tw: 360, th: 320, center: 7, snap: 300, t1: [540, 930], t2: [540, 1060] },
+  phone: { cx: 540, py: 1145, pw: 500, ph: 1064, rise: 820, chipX: 540, chipY: 268, chipDy: 112, left: false },
+  end: { cx: 540, cy: 760, lw: 880, spread: [W * 1.25, 1400], fs: 300, drip: 190, tag: [1215, 64], cta: [1370, 520, 132, 62], url: [1540, 40], foot: [1612, 22] },
+  focus: [540, 900], toGridScale: 0.4, cave: [330, 300], crystal: [2.3, 2.2]
+};
 
 const INK = "#eafff6", MINT = "#52f0b0", SLIME = "#7dff3c", AQUA = "#00ffcc";
 
@@ -83,6 +115,7 @@ function kf(u, keys) {
 
 // ---------------------------------------------------------------- canvas helpers
 const out = document.getElementById("out");
+out.width = W; out.height = H; out.style.width = W + "px"; out.style.height = H + "px";
 const ctx = out.getContext("2d");
 function mk(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
 const L1 = mk(W, H), L2 = mk(W, H), TMP = mk(W, H), CH = mk(W, H), GOO = mk(W, H), GOO2 = mk(W, H);
@@ -153,6 +186,7 @@ function pill(g, str, cx, cy, alpha = 1, o = {}) {
   const tw = g.measureText(str).width - ls;
   const h = o.h ?? 56, w = tw + (o.padX ?? 34) * 2;
   g.globalAlpha = alpha;
+  if (o.left) cx += w / 2;                 // cx is the left edge
   rrect(g, cx - w / 2, cy - h / 2, w, h, h / 2);
   g.fillStyle = "rgba(0,22,26,.62)"; g.fill();
   g.lineWidth = 2; g.strokeStyle = "rgba(82,240,176,.55)"; g.stroke();
@@ -190,7 +224,7 @@ function buildCave() {
   rg(W * 0.5, H * 0.45, W * 1.2, H * 0.65, [[0, "rgba(0,24,40,.95)"], [0.72, "rgba(0,24,40,0)"]]);
   // stalactites (the site's clip-path, scaled)
   const stal = [[0, 0], [100, 0], [100, 26], [95, 78], [90, 34], [84, 96], [77, 40], [70, 70], [62, 30], [55, 88], [48, 38], [41, 64], [34, 30], [27, 100], [20, 42], [13, 72], [6, 32], [0, 30]];
-  const sh = 330;
+  const [sh, gh] = LY.cave;
   g.save();
   g.shadowColor = "rgba(0,180,160,.22)"; g.shadowBlur = 44; g.shadowOffsetY = 18;
   let gr = g.createLinearGradient(0, 0, 0, sh);
@@ -200,7 +234,6 @@ function buildCave() {
   g.closePath(); g.fill();
   // ground
   const grd = [[0, 100], [100, 100], [100, 44], [92, 70], [85, 40], [76, 64], [66, 36], [58, 60], [50, 32], [42, 58], [33, 38], [24, 66], [15, 40], [8, 70], [0, 46]];
-  const gh = 300;
   g.shadowColor = "rgba(0,200,180,.16)"; g.shadowBlur = 50; g.shadowOffsetY = -10;
   gr = g.createLinearGradient(0, H, 0, H - gh);
   gr.addColorStop(0, "#000508"); gr.addColorStop(1, "#001018");
@@ -212,7 +245,7 @@ function buildCave() {
 }
 function buildVignette() {
   const c = mk(W, H), g = g2d(c);
-  g.save(); g.translate(W / 2, H / 2); g.scale(W * 0.95, H * 0.78);
+  g.save(); g.translate(W / 2, H / 2); g.scale(LAND ? W * 0.8 : W * 0.95, LAND ? H * 0.98 : H * 0.78);
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
   gr.addColorStop(0.45, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,.72)");
   g.fillStyle = gr; g.fillRect(-1.5, -1.5, 3, 3); g.restore();
@@ -261,10 +294,11 @@ function drawSpores(g, t, alpha, n = 46) {
 }
 
 function drawCrystals(g, b, alpha) {
-  const list = [[0.06, 60 * 2.2, "#00d8c8", -10, 72], [0.13, 48 * 2.2, "#0090e0", 14, 46], [0.92, 64 * 2.2, "#8800ff", 9, 80], [0.85, 46 * 2.2, "#00c8e8", -8, 42]];
+  const [ks, kb] = LY.crystal;
+  const list = [[0.06, 60 * kb, "#00d8c8", -10, 72], [0.13, 48 * kb, "#0090e0", 14, 46], [0.92, 64 * kb, "#8800ff", 9, 80], [0.85, 46 * kb, "#00c8e8", -8, 42]];
   g.save();
   list.forEach(([fx, bottom, col, rot, h], i) => {
-    const hh = h * 2.3, ww = 26 * 2.3;
+    const hh = h * ks, ww = 26 * ks;
     const x = fx * W + (fx > 0.5 ? -ww : 0), y = H - bottom - hh;
     const pulse = 0.75 + 0.65 * (0.5 + 0.5 * Math.sin((b / 4 + i * 0.25) * Math.PI * 2));
     g.save(); g.translate(x + ww / 2, y + hh); g.rotate(rot * Math.PI / 180);
@@ -344,9 +378,12 @@ const ROSTER = [
 ].map((o) => ({ ...o, dna: makeDNA(o) }));
 const ARCH = ["blob", "multihead", "octopus", "beast", "fish", "bird", "worm", "alien", "crab", "dragon", "eyeball", "jelly", "virus", "bacteria", "snake", "scorpion", "dino", "cell"];
 // grid order: the last roster monster (beast) sits in the middle tile it shrinks into
-const GRID = ["bird", "dragon", "fish", "alien", "multihead", "crab", "worm", "beast", "snake", "jelly", "eyeball", "virus", "scorpion", "blob", "bacteria", "dino", "cell", "octopus"];
-const GRID_CENTER = 7;
-const gridTile = (i) => ({ x: (i % 3) * 360, y: Math.floor(i / 3) * 320, w: 360, h: 320 });
+const GRID_V = ["bird", "dragon", "fish", "alien", "multihead", "crab", "worm", "beast", "snake", "jelly", "eyeball", "virus", "scorpion", "blob", "bacteria", "dino", "cell", "octopus"];
+// landscape: same set, beast swapped one tile right so it lands nearer the middle of the 6×3 grid
+const GRID = LAND ? GRID_V.map((t, i) => (i === 7 ? "snake" : i === 8 ? "beast" : t)) : GRID_V;
+const tileHue = (type) => (GRID_V.indexOf(type) * 47 + 120) % 360;   // colour follows the creature, not the slot
+const GRID_CENTER = LY.grid.center;
+const gridTile = (i) => ({ x: (i % LY.grid.cols) * LY.grid.tw, y: Math.floor(i / LY.grid.cols) * LY.grid.th, w: LY.grid.tw, h: LY.grid.th });
 const GRID_RANK = (() => {
   const c = gridTile(GRID_CENTER);
   const d = GRID.map((_, i) => { const r = gridTile(i); return [Math.hypot(r.x - c.x, (r.y - c.y) * 1.1), i]; });
@@ -358,7 +395,7 @@ function gridDNA(type, i) {
   const r = ROSTER.find((o) => o.type === type);
   if (r) return r.dna;
   if (type === "blob") return HERO;
-  return makeDNA({ type, hue: (i * 47 + 120) % 360, menace: 0.45, seed: 30 + i });
+  return makeDNA({ type, hue: tileHue(type), menace: 0.45, seed: 30 + GRID_V.indexOf(type) });
 }
 
 function setCam(inst, c) {
@@ -400,7 +437,8 @@ function projectFace(yaw, pitch, cx, cy, height) {
 // ---- intro: eyes in the dark
 function shotIntro(g, b, t) {
   const look = Math.sin(b * 0.8) * 9 - 6 * smooth(seg(b, 4, 5));
-  const ex = 540, ey = 800, pupX = ex + 150 + look, pupY = ey;
+  const { ex, ey, es, l1y, l2y, size } = LY.intro;
+  const pupX = ex + 150 * es + look, pupY = ey;
   const zp = seg(b, 7.0, 8.0), z = (1 + 0.05 * seg(b, 0, 7)) * (1 + inExpo(zp) * 90);
   g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
   g.save();
@@ -411,14 +449,14 @@ function shotIntro(g, b, t) {
   let open = outCubic(seg(b, 1.0, 1.45));
   for (const c of [3.5, 5.75]) open *= 1 - clamp(1 - Math.abs(b - c) / 0.13);
   open *= lerp(1, 0.62, smooth(seg(b, 6.5, 6.95)));
-  drawEyePair(g, ex, ey, 1, open, 0.55 + 0.45 * heart(b), look);
+  drawEyePair(g, ex, ey, es, open, 0.55 + 0.45 * heart(b), look);
   g.restore();
   const ta = 1 - smooth(seg(b, 6.85, 7.25));
   if (ta > 0) {
-    revealText(g, T.l1, 540, 1190, { size: 104, alpha: ta, glow: "rgba(82,240,176,.25)" }, seg(b, 2.0, 3.3));
+    revealText(g, T.l1, W / 2, l1y, { size, alpha: ta, glow: "rgba(82,240,176,.25)" }, seg(b, 2.0, 3.3));
     const k = [...T.l2a].length;
-    revealText(g, T.l2a + T.l2b, 540, 1312, {
-      size: 104, alpha: ta,
+    revealText(g, T.l2a + T.l2b, W / 2, l2y, {
+      size, alpha: ta,
       colorAt: (i) => (i >= k ? SLIME : INK),
       glowAt: (i) => (i >= k ? "rgba(125,255,60,.65)" : "rgba(82,240,176,.25)")
     }, seg(b, 4.0, 5.4));
@@ -428,12 +466,11 @@ function shotIntro(g, b, t) {
 
 // ---- 01 scan
 const TAGS = [
-  { i: 234, k: "BODY", v: "0.62", at: 12.0, left: true, dy: 40 }, { i: 386, k: "EYE", v: "0.48", at: 12.5, left: false, dy: -90 },
-  { i: 168, k: "GAP", v: "0.55", at: 13.0, left: true, dy: -150 }, { i: 14, k: "MOUTH", v: "0.71", at: 13.5, left: false, dy: 60 }
+  { i: 234, k: "BODY", v: "0.62", at: 12.0, left: true, dy: LAND ? 60 : 40 }, { i: 386, k: "EYE", v: "0.48", at: 12.5, left: false, dy: -90 },
+  { i: 168, k: "GAP", v: "0.55", at: 13.0, left: true, dy: LAND ? 0 : -150 }, { i: 14, k: "MOUTH", v: "0.71", at: 13.5, left: false, dy: 60 }
 ];
 function shotScan(g, b, t) {
-  const cx = 540, cy = 880, fh = 690;
-  const box = { x: 150, y: 480, w: 780, h: 800 };
+  const L = LY.scan, { cx, cy, fh, box } = L;
   g.fillStyle = "#00070c"; g.fillRect(0, 0, W, H);
   const fin = smooth(seg(b, 8.0, 8.8));
   // faint scan grid + center glow
@@ -512,7 +549,7 @@ function shotScan(g, b, t) {
     const p = seg(b, tg.at, tg.at + 0.45), fade = 1 - smooth(seg(b, 14.7, 15.05));
     if (p <= 0 || fade <= 0) continue;
     const px = X[tg.i], py = Y[tg.i], left = tg.left;
-    const lx = left ? 92 : W - 92, ly = py + tg.dy;
+    const lx = left ? L.tagL : L.tagR, ly = py + tg.dy;
     const e = outCubic(p);
     g.save(); g.globalAlpha = fade;
     g.strokeStyle = "rgba(120,255,220,.8)"; g.lineWidth = 2;
@@ -538,17 +575,17 @@ function shotScan(g, b, t) {
   if (hudA > 0) {
     g.save(); g.globalAlpha = hudA * (0.75 + 0.25 * Math.sin(t * 3));
     g.strokeStyle = "rgba(0,240,200,.95)"; g.lineWidth = 4; g.shadowColor = "rgba(0,220,180,.7)"; g.shadowBlur = 14;
-    const L = 58, ins = (1 - outCubic(seg(b, 8.4, 9.3))) * 60;
+    const C = 58, ins = (1 - outCubic(seg(b, 8.4, 9.3))) * 60;
     const bx = box.x + ins, by = box.y + ins, bw = box.w - ins * 2, bh = box.h - ins * 2;
     g.beginPath();
-    g.moveTo(bx, by + L); g.lineTo(bx, by); g.lineTo(bx + L, by);
-    g.moveTo(bx + bw - L, by); g.lineTo(bx + bw, by); g.lineTo(bx + bw, by + L);
-    g.moveTo(bx, by + bh - L); g.lineTo(bx, by + bh); g.lineTo(bx + L, by + bh);
-    g.moveTo(bx + bw - L, by + bh); g.lineTo(bx + bw, by + bh); g.lineTo(bx + bw, by + bh - L);
+    g.moveTo(bx, by + C); g.lineTo(bx, by); g.lineTo(bx + C, by);
+    g.moveTo(bx + bw - C, by); g.lineTo(bx + bw, by); g.lineTo(bx + bw, by + C);
+    g.moveTo(bx, by + bh - C); g.lineTo(bx, by + bh); g.lineTo(bx + C, by + bh);
+    g.moveTo(bx + bw - C, by + bh); g.lineTo(bx + bw, by + bh); g.lineTo(bx + bw, by + bh - C);
     g.stroke(); g.restore();
-    monoText(g, T.scanLabel, cx, box.y - 24, { size: 22, ls: 7, alpha: hudA * 0.8, color: "rgba(0,220,180,1)" });
+    monoText(g, T.scanLabel, box.x + box.w / 2, box.y - 24, { size: 22, ls: 7, alpha: hudA * 0.8, color: "rgba(0,220,180,1)" });
     // readouts (same rows as the site's HUD)
-    const rx0 = box.x + 10, rx1 = box.x + box.w - 10, ry = box.y + box.h + 70;
+    const [rx0, rx1, ry] = L.hud;
     const lm = Math.round(478 * outCubic(seg(b, 8.6, 10.8)));
     const lockedFace = b >= 11.5;
     const pct = Math.round(100 * seg(b, 9, 15));
@@ -567,9 +604,10 @@ function shotScan(g, b, t) {
     g.restore();
   }
   // header
-  pill(g, `${T.step} 01`, 540, 250, outCubic(seg(b, 8.2, 8.8)) * (1 - smooth(seg(b, 15.1, 15.5))));
-  revealText(g, T.s1, 540, 372, { size: 92, alpha: 1 - smooth(seg(b, 15.1, 15.5)), glow: "rgba(82,240,176,.3)" }, seg(b, 8.35, 9.4));
-  monoText(g, T.s1sub, 540, 1600, { size: 26, ls: 4, alpha: smooth(seg(b, 10.2, 10.8)) * (1 - smooth(seg(b, 15.1, 15.5))) * 0.8 });
+  const al = L.left ? "left" : "center";
+  pill(g, `${T.step} 01`, L.pill[0], L.pill[1], outCubic(seg(b, 8.2, 8.8)) * (1 - smooth(seg(b, 15.1, 15.5))), { left: L.left });
+  revealText(g, T.s1, L.head[0], L.head[1], { size: L.head[2], align: al, maxW: L.left ? 700 : undefined, alpha: 1 - smooth(seg(b, 15.1, 15.5)), glow: "rgba(82,240,176,.3)" }, seg(b, 8.35, 9.4));
+  monoText(g, T.s1sub, L.sub[0], L.sub[1], { size: 26, ls: 4, align: al, alpha: smooth(seg(b, 10.2, 10.8)) * (1 - smooth(seg(b, 15.1, 15.5))) * 0.8 });
   // DNA orb + flash into the roar
   if (q > 0) {
     g.save(); g.globalCompositeOperation = "lighter";
@@ -688,7 +726,7 @@ function drawCauldron(g, cx, cy, S, t, lvl) {
   g.restore();
 }
 function shotRoar(g, b, t) {
-  const cx = 540;
+  const R = LY.roar, cx = R.countX;
   const inCount = b >= 17 && b < 22;
   const kick = b >= 16 ? env(fr(b), 3.2) : 0;
   const lvl = inCount ? env(fr(b), 2.4) * (0.6 + 0.4 * hash(Math.floor(b))) : 0.15;
@@ -699,31 +737,31 @@ function shotRoar(g, b, t) {
   g.fillStyle = "#05030c"; g.fillRect(0, 0, W, H);
   g.save();
   g.translate((hash(Math.floor(t * 30) * 1.1) - 0.5) * shake, (hash(Math.floor(t * 30) * 2.3) - 0.5) * shake);
-  const bgr = g.createRadialGradient(cx, 980, 0, cx, 980, 1300);
+  const bgr = g.createRadialGradient(R.bg[0], R.bg[1], 0, R.bg[0], R.bg[1], R.bg[2]);
   bgr.addColorStop(0, "#14223a"); bgr.addColorStop(1, "#02010a");
   g.fillStyle = bgr; g.fillRect(-40, -40, W + 80, H + 80);
-  drawRays(g, cx, 980, t, kick, 1);
+  drawRays(g, R.rays[0], R.rays[1], t, kick, 1);
   // pulsing rings
   for (let r = 0; r < 3; r++) {
     const pr = fr(b + r / 3);
     g.strokeStyle = `hsla(${(160 + r * 60 + t * 20) % 360},90%,62%,${(1 - pr) * (0.18 + lvl * 0.4)})`;
     g.lineWidth = 6 + lvl * 18;
-    g.beginPath(); g.arc(cx, 1000, pr * 820, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.arc(R.rings[0], R.rings[1], pr * R.rings[2], 0, Math.PI * 2); g.stroke();
   }
   // sparks
   const sparks = 6 + Math.floor(lvl * 22);
   for (let i = 0; i < sparks; i++) {
     const fq = Math.floor(t * 12);
-    const x = hash(fq * 3.1 + i) * W, y = 200 + hash(fq * 5.7 + i * 2) * 1500, s = (6 + hash(fq + i * 9) * 16) * (0.6 + lvl);
+    const x = hash(fq * 3.1 + i) * W, y = R.sparkY[0] + hash(fq * 5.7 + i * 2) * (R.sparkY[1] - R.sparkY[0]), s = (6 + hash(fq + i * 9) * 16) * (0.6 + lvl);
     g.fillStyle = `hsla(${hash(i + fq) * 360},90%,70%,${0.25 + lvl * 0.45})`;
     g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s * 0.25, y - s * 0.25); g.lineTo(x + s, y); g.lineTo(x + s * 0.25, y + s * 0.25);
     g.lineTo(x, y + s); g.lineTo(x - s * 0.25, y + s * 0.25); g.lineTo(x - s, y); g.lineTo(x - s * 0.25, y - s * 0.25); g.closePath(); g.fill();
   }
   // silhouette rising out of the cauldron (the hero, still dark)
-  const potY = 1300, S = 2.1, brewY = potY - 54 * S;
+  const { potX, potY, S } = R, brewY = potY - 54 * S;
   const eyes = heroSilhouette(t);
-  const sc = lerp(0.42, 0.72, gp), dw = MW * sc, dh = MH * sc;
-  const dx = cx - dw / 2, dy = brewY - dh * 0.7 + Math.sin(t * 1.8) * 6;
+  const sc = lerp(R.sc[0], R.sc[1], gp), dw = MW * sc, dh = MH * sc;
+  const dx = potX - dw / 2, dy = brewY - dh * 0.7 + Math.sin(t * 1.8) * 6;
   g.save();
   const sm = g2d(SMALL); sm.clearRect(0, 0, SMALL.width, SMALL.height);
   sm.filter = "blur(5px)"; sm.drawImage(SILC, 0, 0, SMALL.width, SMALL.height); sm.filter = "none";
@@ -739,15 +777,15 @@ function shotRoar(g, b, t) {
     g.globalAlpha = blink; g.drawImage(SPRITES["255,255,220"], x - r * 0.45, y - r * 0.45, r * 0.9, r * 0.9);
   }
   g.restore();
-  drawCauldron(g, cx, potY, S, t, lvl);
+  drawCauldron(g, potX, potY, S, t, lvl);
   // voice waveform
-  const wy = 1545, wa = smooth(seg(b, 16.4, 17)) * (1 - smooth(seg(b, 21.8, 22)));
+  const [wx0, wx1, wy] = R.wave, wa = smooth(seg(b, 16.4, 17)) * (1 - smooth(seg(b, 21.8, 22)));
   if (wa > 0) {
     g.save(); g.globalAlpha = wa; g.lineWidth = 3.5; g.strokeStyle = MINT; g.shadowColor = "rgba(82,240,176,.8)"; g.shadowBlur = 16;
     for (const mir of [1, -0.45]) {
       g.beginPath();
       for (let i = 0; i <= 220; i++) {
-        const u = i / 220, x = 110 + u * 860;
+        const u = i / 220, x = wx0 + u * (wx1 - wx0);
         const amp = (10 + 120 * lvl) * Math.sin(Math.PI * u) ** 1.5;
         const v = Math.sin(u * 46 + t * 17) * 0.55 + Math.sin(u * 113 - t * 23) * 0.3 + (hash(i * 1.7 + Math.floor(t * 30)) - 0.5) * 0.5;
         const y = wy + v * amp * mir;
@@ -757,26 +795,27 @@ function shotRoar(g, b, t) {
     }
     g.restore();
     const rec = fr(t / 0.9) < 0.6 ? 1 : 0.25;
+    const [dotX, dotY, tx, ty, tal] = R.voice ? [R.voice[0] + 9, R.voice[1] - 9, R.voice[0] + 32, R.voice[1], "left"] : [cx - 230, 1612, cx + 12, 1622, "center"];
     g.save(); g.globalAlpha = wa * rec; g.fillStyle = "#ff2e4a"; g.shadowColor = "#ff2e4a"; g.shadowBlur = 12;
-    g.beginPath(); g.arc(cx - 230, 1612, 9, 0, Math.PI * 2); g.fill(); g.restore();
-    monoText(g, T.voice, cx + 12, 1622, { size: 24, ls: 5, alpha: wa * 0.85 });
+    g.beginPath(); g.arc(dotX, dotY, 9, 0, Math.PI * 2); g.fill(); g.restore();
+    monoText(g, T.voice, tx, ty, { size: 24, ls: 5, align: tal, alpha: wa * 0.85 });
   }
   g.restore();
   // header
-  pill(g, `${T.step} 02`, 540, 250, outCubic(seg(b, 16.1, 16.6)));
-  revealText(g, T.s2, 540, 372, { size: 88, glow: "rgba(82,240,176,.3)" }, seg(b, 16.2, 17.2));
+  pill(g, `${T.step} 02`, R.pill[0], R.pill[1], outCubic(seg(b, 16.1, 16.6)), { left: R.left });
+  revealText(g, T.s2, R.head[0], R.head[1], { size: R.head[2], align: R.left ? "left" : "center", maxW: R.left ? 800 : undefined, glow: "rgba(82,240,176,.3)" }, seg(b, 16.2, 17.2));
   // countdown: GET READY on 16, then word + 5..1 on beats 17..21
   const countKick = (u) => ({ s: kf(u, [[0, 1], [0.28, 1.13], [0.58, 0.96], [1, 1]]), x: kf(u, [[0, 0], [0.28, 16], [0.58, -14], [1, 0]]), r: kf(u, [[0, 0], [0.28, 1], [0.58, -1], [1, 0]]) });
   const bi = Math.floor(b);
   if (b >= 16 && b < 22) {
     const u0 = (b - bi) * BEAT;
     const ck = countKick(clamp(u0 / 0.4));
-    g.save(); g.translate(cx + ck.x, 760); g.rotate(ck.r * Math.PI / 180); g.scale(ck.s, ck.s); g.translate(-cx, -760);
-    if (bi === 16) drawCountWord(g, T.ready, cx, 700, (b - 16.05) * BEAT / 0.46, 132);
+    g.save(); g.translate(cx + ck.x, R.pivotY); g.rotate(ck.r * Math.PI / 180); g.scale(ck.s, ck.s); g.translate(-cx, -R.pivotY);
+    if (bi === 16) drawCountWord(g, T.ready, cx, R.readyY, (b - 16.05) * BEAT / 0.46, 132);
     else {
       const i = bi - 17;
-      drawCountWord(g, T.words[i % T.words.length], cx, 540, u0 / 0.46, 150);
-      drawBigNum(g, String(5 - i), cx, 870, u0 / 0.65, t);
+      drawCountWord(g, T.words[i % T.words.length], cx, R.shoutY, u0 / 0.46, 150);
+      drawBigNum(g, String(5 - i), cx, R.numY, u0 / 0.65, t);
     }
     g.restore();
   }
@@ -794,7 +833,7 @@ function shotRoar(g, b, t) {
     g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
     let open = outCubic(seg(b, 23.1, 23.35)) * (1 - clamp(1 - Math.abs(b - 23.62) / 0.1));
     open *= 1 - smooth(seg(b, 23.82, 23.97));
-    drawEyePair(g, 540, 900, 0.82, open, 1, 0);
+    drawEyePair(g, R.eyes[0], R.eyes[1], R.eyes[2], open, 1, 0);
   }
   if (b < 16.35) { g.fillStyle = `rgba(230,255,248,${1 - smooth(seg(b, 16, 16.35))})`; g.fillRect(0, 0, W, H); }
 }
@@ -817,7 +856,7 @@ function drawConfetti(g, tSince) {
   g.restore();
 }
 function shotReveal(g, b, t) {
-  const cx = 540, cy = 1000, t24 = 24 * BEAT, ts = t - t24;
+  const V = LY.reveal, { cx, cy } = V, t24 = 24 * BEAT, ts = t - t24;
   // the site's spinning conic reveal background
   const ang = t * (Math.PI * 2 / 10);
   const cg = g.createConicGradient(ang, cx, cy);
@@ -847,16 +886,22 @@ function shotReveal(g, b, t) {
     g.shadowColor = "rgba(82,240,176,.9)"; g.shadowBlur = 40;
     g.beginPath(); g.arc(cx, cy, outCubic(sw) * 1300, 0, Math.PI * 2); g.stroke(); g.restore();
   }
-  pill(g, `${T.step} 03`, 540, 250, outCubic(seg(b, 25.2, 25.7)));
-  revealText(g, T.s3, 540, 372, { size: 92, glow: "rgba(82,240,176,.35)" }, seg(b, 25.35, 26.5));
-  monoText(g, T.s3sub, 540, 1640, { size: 26, ls: 5, alpha: smooth(seg(b, 26.5, 27.2)) * 0.85 });
+  pill(g, `${T.step} 03`, V.pill[0], V.pill[1], outCubic(seg(b, 25.2, 25.7)), { left: V.left });
+  if (V.head2) {
+    // landscape: the headline breaks before its last word, which gets the slime colour
+    const cut = T.s3.lastIndexOf(" ");
+    const o = { size: V.head[2], align: "left", maxW: 720, glow: "rgba(82,240,176,.35)" };
+    revealText(g, T.s3.slice(0, cut), V.head[0], V.head[1], o, seg(b, 25.35, 26.2));
+    revealText(g, T.s3.slice(cut + 1), V.head[0], V.head2, { ...o, color: SLIME, glow: "rgba(125,255,60,.55)" }, seg(b, 25.75, 26.6));
+  } else revealText(g, T.s3, V.head[0], V.head[1], { size: V.head[2], glow: "rgba(82,240,176,.35)" }, seg(b, 25.35, 26.5));
+  monoText(g, T.s3sub, V.sub[0], V.sub[1], { size: 26, ls: 5, align: V.left ? "left" : "center", alpha: smooth(seg(b, 26.5, 27.2)) * 0.85 });
   const fl = 1 - smooth(seg(b, 24, 24.4));
   if (fl > 0) { g.fillStyle = `rgba(240,255,250,${fl * 0.95})`; g.fillRect(0, 0, W, H); }
 }
 
 // ---- roster: one archetype per beat
 function shotRoster(g, b, t, i) {
-  const r = ROSTER[i], start = 31 + i, cx = 540, cy = 860;
+  const r = ROSTER[i], start = 31 + i, RL = LY.roster, { cx, cy } = RL;
   const inst = i % 2 === 0 ? MB : MA, canv = i % 2 === 0 ? CB : CA;
   const bg = g.createRadialGradient(cx, cy, 0, cx, cy, 1400);
   bg.addColorStop(0, `hsl(${r.hue},62%,20%)`); bg.addColorStop(0.55, `hsl(${r.hue + 18},70%,9%)`); bg.addColorStop(1, `hsl(${r.hue + 30},80%,3%)`);
@@ -882,12 +927,17 @@ function shotRoster(g, b, t, i) {
   // labels
   const e = outCubic(seg(b, start - 0.05, start + 0.35));
   const num = String(ARCH.indexOf(r.type) + 1).padStart(2, "0");
-  monoText(g, `${T.no} ${num} / 18`, cx, 1425, { size: 30, ls: 6, alpha: e * 0.9, color: `hsl(${r.hue},90%,78%)` });
+  const al = RL.left ? "left" : "center";
+  monoText(g, `${T.no} ${num} / 18`, RL.counter[0], RL.counter[1], { size: 30, ls: 6, align: al, alpha: e * 0.9, color: `hsl(${r.hue},90%,78%)` });
   g.save();
-  g.beginPath(); g.rect(0, 1436, W, 170); g.clip();
-  font(g, name.length > 9 ? 104 : 124, 700); g.textAlign = "center"; g.textBaseline = "alphabetic"; g.letterSpacing = "4px";
+  g.beginPath(); g.rect(...RL.clip); g.clip();
+  let ns = RL.size ?? (name.length > 9 ? 104 : 124);
+  font(g, ns, 700); g.letterSpacing = "4px";
+  const nw = g.measureText(name).width;
+  if (nw > RL.nameMax) { ns *= RL.nameMax / nw; font(g, ns, 700); }
+  g.textAlign = al; g.textBaseline = "alphabetic";
   g.fillStyle = INK; g.shadowColor = `hsla(${r.hue},90%,60%,.6)`; g.shadowBlur = 30;
-  g.fillText(name, cx, 1566 + (1 - e) * 150);
+  g.fillText(name, RL.name[0], RL.name[1] + (1 - e) * 150);
   g.restore();
 }
 
@@ -902,15 +952,15 @@ function shotGrid(g, b, t, hideCenter) {
     const p = seg(b, a, a + 0.32);
     if (p <= 0) return;
     const tl = gridTile(i), s = i === GRID_CENTER ? 1 : outBack(p, 2.0);
-    const hue = (i * 47 + 120) % 360;
+    const hue = tileHue(type);
     g.save(); g.translate(tl.x + tl.w / 2, tl.y + tl.h / 2); g.scale(s, s);
     rrect(g, -tl.w / 2 + 8, -tl.h / 2 + 8, tl.w - 16, tl.h - 16, 30);
     const tg = g.createLinearGradient(0, -tl.h / 2, 0, tl.h / 2);
     tg.addColorStop(0, `hsl(${hue},48%,17%)`); tg.addColorStop(1, `hsl(${hue + 20},60%,7%)`);
     g.fillStyle = tg; g.fill(); g.strokeStyle = "rgba(255,255,255,.07)"; g.lineWidth = 2; g.stroke();
-    const br = 1 + Math.sin(t * 3 + i) * 0.02;
+    const br = 1 + Math.sin(t * 3 + i) * 0.02, sn = LY.grid.snap;
     g.save(); g.clip();
-    g.drawImage(SNAP[type], -150, -165 + 6, 300, 300 * br);
+    g.drawImage(SNAP[type], -sn / 2, -tl.h / 2 + 1, sn, sn * br);
     g.restore();
     monoText(g, T.names[type], 0, tl.h / 2 - 22, { size: 17, ls: 3, alpha: 0.55, color: "#cfe" });
     g.restore();
@@ -920,8 +970,8 @@ function shotGrid(g, b, t, hideCenter) {
   if (dim > 0) {
     g.fillStyle = `rgba(0,4,8,${0.62 * dim})`; g.fillRect(0, 0, W, H);
     const k = [...T.g1];
-    revealText(g, T.g1, 540, 930, { size: 150, weight: 700, glow: "rgba(0,0,0,.6)", glowBlur: 40 }, seg(b, 38.2, 38.95));
-    revealText(g, T.g2, 540, 1060, { size: 70, color: SLIME, glow: "rgba(125,255,60,.55)" }, seg(b, 38.7, 39.5));
+    revealText(g, T.g1, LY.grid.t1[0], LY.grid.t1[1], { size: 150, weight: 700, glow: "rgba(0,0,0,.6)", glowBlur: 40 }, seg(b, 38.2, 38.95));
+    revealText(g, T.g2, LY.grid.t2[0], LY.grid.t2[1], { size: 70, color: SLIME, glow: "rgba(125,255,60,.55)" }, seg(b, 38.7, 39.5));
   }
 }
 
@@ -931,8 +981,8 @@ function shotPhone(g, b, t) {
   g.drawImage(CAVE, 0, 0);
   drawCrystals(g, b, 1);
   drawSpores(g, t, 0.9, 36);
-  const cx = 540, enter = outCubic(seg(b, 39.85, 40.6));
-  const pw = 500, ph = 1064, py = 1145 + (1 - enter) * 820 + Math.sin(t * 1.4) * 8;
+  const PL = LY.phone, cx = PL.cx, enter = outCubic(seg(b, 39.85, 40.6));
+  const { pw, ph } = PL, py = PL.py + (1 - enter) * PL.rise + Math.sin(t * 1.4) * 8;
   const glow = g.createRadialGradient(cx, py, 0, cx, py, 760);
   glow.addColorStop(0, `rgba(82,240,176,${0.2 + 0.1 * heart(b)})`); glow.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = glow; g.fillRect(0, 0, W, H);
@@ -963,10 +1013,10 @@ function shotPhone(g, b, t) {
   chips.forEach(([txt, at, icon], i) => {
     const p = outCubic(seg(b, at, at + 0.45));
     if (p <= 0) return;
-    const y = 268 + i * 112, dir = i % 2 ? 1 : -1;
-    g.save(); g.globalAlpha = p; g.translate(cx + dir * (1 - p) * 120, y);
+    const y = PL.chipY + i * PL.chipDy, dir = PL.left ? -1 : i % 2 ? 1 : -1;
     font(g, 44, 600); g.letterSpacing = "0px";
     const tw = g.measureText(txt).width, w = tw + 136, h = 90;
+    g.save(); g.globalAlpha = p; g.translate((PL.left ? PL.chipX + w / 2 : PL.chipX) + dir * (1 - p) * 120, y);
     rrect(g, -w / 2, -h / 2, w, h, h / 2);
     g.fillStyle = "rgba(0,14,22,.86)"; g.fill();
     g.lineWidth = 2; g.strokeStyle = "rgba(0,220,180,.45)"; g.stroke();
@@ -990,7 +1040,7 @@ const bumpGlitch = (b, at) => clamp(1 - Math.abs(b - at) / 0.12);
 const SPLASH_DOTS = [[0.32, -0.21, 26], [-0.31, -0.19, 22], [0.34, 0.15, 23], [-0.29, 0.17, 18], [0.15, -0.31, 16], [-0.13, -0.29, 14], [0, -0.35, 12], [0.4, -0.04, 14], [-0.39, 0.02, 16], [-0.2, -0.35, 10], [0.23, 0.29, 12]];
 const SPLASH_DRIPS = [{ dx: -1.1, d: 0 }, { dx: -0.35, d: 0.35 }, { dx: 0.3, d: 0.65 }, { dx: 1.05, d: 0.15 }, { dx: -0.72, d: 0.8 }];
 function shotEnd(g, b, t) {
-  const cx = 540, cy = 760;
+  const E = LY.end, { cx, cy } = E;
   g.drawImage(CAVE, 0, 0);
   g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(0, 0, W, H);
   drawCrystals(g, b, 0.8);
@@ -1004,11 +1054,11 @@ function shotEnd(g, b, t) {
   gg.clearRect(0, 0, W, H); gg.fillStyle = SLIME;
   SPLASH_DOTS.forEach(([dx, dy, r], i) => {
     const pulse = 1 + 0.22 * Math.sin(t / 0.55 + i * 1.4);
-    gg.beginPath(); gg.arc(cx + dx * W * 1.25 * burst, cy + dy * 1400 * burst, r * 1.7 * pulse * (0.4 + 0.6 * burst), 0, Math.PI * 2); gg.fill();
+    gg.beginPath(); gg.arc(cx + dx * E.spread[0] * burst, cy + dy * E.spread[1] * burst, r * 1.7 * pulse * (0.4 + 0.6 * burst), 0, Math.PI * 2); gg.fill();
   });
-  const fs = 300, dripBase = cy + fs * 0.62;
+  const fs = E.fs, dripBase = cy + fs * 0.62;
   SPLASH_DRIPS.forEach(({ dx, d }) => {
-    const p = fr(t / 2.2 + d), tipY = dripBase + p * 190 * burst, br = 12 + p * 8;
+    const p = fr(t / 2.2 + d), tipY = dripBase + p * E.drip * burst, br = 12 + p * 8;
     gg.fillRect(cx + dx * fs - 9, dripBase, 18, Math.max(0, tipY - dripBase - br));
     gg.beginPath(); gg.arc(cx + dx * fs, tipY, br, 0, Math.PI * 2); gg.fill();
   });
@@ -1018,7 +1068,7 @@ function shotEnd(g, b, t) {
   if (lp > 0) {
     const s = lerp(0.35, 1, outBack(lp, 1.9)) * (1 + 0.012 * heart(b)) * lerp(1, 1.04, seg(b, 43.5, 48));
     const rot = lerp(-0.14, 0, outCubic(lp)) + Math.sin(t * 2.1) * 0.01;
-    const lw = 880, lh = lw * IMG.logo.height / IMG.logo.width;
+    const lw = E.lw, lh = lw * IMG.logo.height / IMG.logo.width;
     g.save(); g.translate(cx, cy); g.rotate(rot); g.scale(s, s);
     g.shadowColor = "rgba(126,240,96,.75)"; g.shadowBlur = 50 + 20 * heart(b);
     g.drawImage(IMG.logo, -lw / 2, -lh / 2, lw, lh);
@@ -1029,11 +1079,11 @@ function shotEnd(g, b, t) {
     g.save(); g.strokeStyle = `rgba(200,255,150,${1 - sw})`; g.lineWidth = lerp(50, 2, outCubic(sw));
     g.beginPath(); g.arc(cx, cy, outCubic(sw) * 1200, 0, Math.PI * 2); g.stroke(); g.restore();
   }
-  revealText(g, T.tag, cx, 1215, { size: 64, glow: "rgba(82,240,176,.35)" }, seg(b, 44, 45));
+  revealText(g, T.tag, cx, E.tag[0], { size: E.tag[1], glow: "rgba(82,240,176,.35)" }, seg(b, 44, 45));
   // CTA button in the site's button style
   const bp = seg(b, 45, 45.45);
   if (bp > 0) {
-    const s = outBack(bp, 2.2), bw = 520, bh = 132, by = 1370;
+    const s = outBack(bp, 2.2), [by, bw, bh, bf] = E.cta;
     g.save(); g.translate(cx, by); g.scale(s, s);
     g.shadowColor = "rgba(82,240,176,.55)"; g.shadowBlur = 44 + 20 * heart(b);
     rrect(g, -bw / 2, -bh / 2 + 14, bw, bh, 36); g.fillStyle = "#0e201a"; g.fill();
@@ -1041,7 +1091,7 @@ function shotEnd(g, b, t) {
     rrect(g, -bw / 2, -bh / 2, bw, bh, 36);
     const bgd = g.createLinearGradient(0, -bh / 2, 0, bh / 2); bgd.addColorStop(0, "#2f5d4a"); bgd.addColorStop(1, "#1c3a2e");
     g.fillStyle = bgd; g.fill(); g.lineWidth = 5; g.strokeStyle = "#5fe0a8"; g.stroke();
-    font(g, 62, 700); g.textAlign = "center"; g.textBaseline = "middle";
+    font(g, bf, 700); g.textAlign = "center"; g.textBaseline = "middle";
     g.fillStyle = "#eafff5"; g.shadowColor = "rgba(95,224,168,.8)"; g.shadowBlur = 20;
     g.fillText(T.cta + "  ▶", 0, 4);
     g.restore();
@@ -1050,15 +1100,16 @@ function shotEnd(g, b, t) {
   if (up > 0) {
     const nChars = Math.floor(T.url.length * up);
     const cursor = fr(t / 0.7) < 0.55 ? "▍" : " ";
-    monoText(g, T.url.slice(0, nChars), cx, 1540, { size: 40, ls: 1, color: MINT, glow: "rgba(82,240,176,.5)" });
+    const [uy, us] = E.url;
+    monoText(g, T.url.slice(0, nChars), cx, uy, { size: us, ls: 1, color: MINT, glow: "rgba(82,240,176,.5)" });
     if (up < 1 || b < 47) {
-      g.save(); font(g, 40, 700, "Space Mono"); g.letterSpacing = "1px";
+      g.save(); font(g, us, 700, "Space Mono"); g.letterSpacing = "1px";
       const fw = g.measureText(T.url).width, pw2 = g.measureText(T.url.slice(0, nChars)).width;
       g.fillStyle = MINT; g.globalAlpha = cursor === "▍" ? 0.9 : 0;
-      g.fillRect(cx - fw / 2 + pw2 + 4, 1508, 18, 40); g.restore();
+      g.fillRect(cx - fw / 2 + pw2 + 4, uy - us * 0.8, us * 0.45, us); g.restore();
     }
   }
-  monoText(g, T.foot, cx, 1612, { size: 22, ls: 4, alpha: 0.6 * smooth(seg(b, 46.2, 46.8)), color: "#9fd" });
+  monoText(g, T.foot, cx, E.foot[0], { size: E.foot[1], ls: 4, alpha: 0.6 * smooth(seg(b, 46.2, 46.8)), color: "#9fd" });
   const fl = 1 - smooth(seg(b, 43, 43.3));
   if (fl > 0) { g.fillStyle = `rgba(240,255,235,${fl * 0.9})`; g.fillRect(0, 0, W, H); }
 }
@@ -1079,14 +1130,15 @@ function whip(g, A, B, p, vertical) {
 }
 function iris(g, A, B, p) {
   g.drawImage(A, 0, 0);
-  const r = outCubic(p) * 1250;
-  g.save(); g.beginPath(); g.arc(540, 900, r, 0, Math.PI * 2); g.clip(); g.drawImage(B, 0, 0); g.restore();
+  const [fx, fy] = LY.focus, R = Math.hypot(Math.max(fx, W - fx), Math.max(fy, H - fy)) + 20;
+  const r = outCubic(p) * R;
+  g.save(); g.beginPath(); g.arc(fx, fy, r, 0, Math.PI * 2); g.clip(); g.drawImage(B, 0, 0); g.restore();
   g.save(); g.strokeStyle = `rgba(200,255,240,${1 - p})`; g.lineWidth = 10; g.shadowColor = MINT; g.shadowBlur = 30;
-  g.beginPath(); g.arc(540, 900, r, 0, Math.PI * 2); g.stroke(); g.restore();
+  g.beginPath(); g.arc(fx, fy, r, 0, Math.PI * 2); g.stroke(); g.restore();
 }
 function gooMask(target, front, seed) {
   const gg = g2d(GOO); gg.clearRect(0, 0, W, H); gg.fillStyle = "#fff";
-  const tips = [], cols = 11;
+  const tips = [], cols = LAND ? 16 : 11;
   for (let i = 0; i < cols; i++) {
     const x = (i + 0.5) * (W / cols) + (hash(i + seed) - 0.5) * 30, len = 140 + hash(i * 3.3 + seed) * 360, wcol = 74 + hash(i * 1.9 + seed) * 44;
     const yEnd = front + len;
@@ -1124,11 +1176,12 @@ function zoomThrough(g, A, B, p) {
   g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
   g.save(); g.globalAlpha = smooth(seg(p, 0.25, 0.8));
   const sb = lerp(0.72, 1, outCubic(seg(p, 0.25, 1)));
-  g.translate(540, 900); g.scale(sb, sb); g.translate(-540, -900); g.drawImage(B, 0, 0); g.restore();
+  const [fx, fy] = LY.focus;
+  g.translate(fx, fy); g.scale(sb, sb); g.translate(-fx, -fy); g.drawImage(B, 0, 0); g.restore();
   g.save(); g.globalAlpha = 1 - smooth(seg(p, 0.2, 0.7));
   const sa = 1 + inCubic(e) * 2.2;
   g.filter = `blur(${(e * 16).toFixed(1)}px)`;
-  g.translate(540, 900); g.scale(sa, sa); g.translate(-540, -900); g.drawImage(A, 0, 0); g.restore();
+  g.translate(fx, fy); g.scale(sa, sa); g.translate(-fx, -fy); g.drawImage(A, 0, 0); g.restore();
   const fl = clamp(1 - Math.abs(p - 0.45) / 0.25) * 0.45;
   if (fl > 0) { g.fillStyle = `rgba(240,255,250,${fl})`; g.fillRect(0, 0, W, H); }
 }
@@ -1137,11 +1190,11 @@ function toGrid(g, A, B, p) {
   const e = inOutCubic(p), tl = gridTile(GRID_CENTER);
   const zs = lerp(1, 1.07, inOutSine(seg(37 + p * 0.5, 37, 40)));
   const tx = (tl.x + tl.w / 2 - W / 2) * zs + W / 2, ty = (tl.y + tl.h / 2 - H / 2) * zs + H / 2;
-  const s = lerp(1, 0.4 * zs, e);
+  const s = lerp(1, LY.toGridScale * zs, e), [fx, fy] = LY.focus;
   const x0 = lerp(0, tx - (tl.w / 2 - 8) * zs, e), y0 = lerp(0, ty - (tl.h / 2 - 8) * zs, e);
   const x1 = lerp(W, tx + (tl.w / 2 - 8) * zs, e), y1 = lerp(H, ty + (tl.h / 2 - 8) * zs, e);
   g.save(); rrect(g, x0, y0, x1 - x0, y1 - y0, lerp(0, 30 * zs, e)); g.clip();
-  g.translate(lerp(540, tx, e), lerp(900, ty - 10, e)); g.scale(s, s); g.translate(-540, -900);
+  g.translate(lerp(fx, tx, e), lerp(fy, ty - 10, e)); g.scale(s, s); g.translate(-fx, -fy);
   g.drawImage(A, 0, 0); g.restore();
 }
 
@@ -1223,7 +1276,7 @@ async function boot() {
   MB = await loadInstance(CB, MW, MH);
   MT = await loadInstance(CT, 400, 400);
   GRID.forEach((type, i) => {
-    renderMonster(MT, gridDNA(type, i), 2 + i * 0.37, 1, { x: 0, y: 0.35, z: type === "snake" || type === "jelly" || type === "octopus" ? 8.4 : 7.6, ly: -0.05 });
+    renderMonster(MT, gridDNA(type, i), 2 + GRID_V.indexOf(type) * 0.37, 1, { x: 0, y: 0.35, z: type === "snake" || type === "jelly" || type === "octopus" ? 8.4 : 7.6, ly: -0.05 });
     const c = mk(400, 400); g2d(c).drawImage(CT, 0, 0); SNAP[type] = c;
   });
   // warm up the shaders of both large instances
@@ -1231,7 +1284,7 @@ async function boot() {
 }
 
 window.FILM = {
-  FPS, FRAMES, W, H, LANG,
+  FPS, FRAMES, W, H, LANG, FORMAT: LAND ? "16x9" : "9x16",
   ready: boot().then(() => true),
   render(f) { renderFrame(f); },
   async frameJPEG(f, q = 0.95) { renderFrame(f); return out.toDataURL("image/jpeg", q); }

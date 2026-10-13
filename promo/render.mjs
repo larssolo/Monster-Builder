@@ -3,19 +3,21 @@
 //   node render.mjs --lang en --out film_en_video.mp4            full render (video only)
 //   node render.mjs --lang en --frames 0,120,300 --preview dir    single frames
 //   node render.mjs --lang en --range 0:600 --out part.mp4         partial
+//   add --format 16x9 for the 1920×1080 landscape cut (default 9x16)
 import { chromium } from "/opt/node-tools/node_modules/playwright/index.mjs";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, arr) => (v.startsWith("--") ? a.concat([[v.slice(2), arr[i + 1]]]) : a), []));
 const lang = args.lang || "en";
+const format = args.format === "16x9" ? "16x9" : "9x16";
 const base = args.base || "http://127.0.0.1:8765/promo/film.html";
 
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
-const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
+const page = await browser.newPage({ viewport: format === "16x9" ? { width: 1920, height: 1080 } : { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
 page.on("console", (m) => { const t = m.text(); if (!t.includes("sigmaRadians")) console.log("console:", t); });
 page.on("pageerror", (e) => console.log("pageerror:", e.message));
-await page.goto(`${base}?lang=${lang}`);
+await page.goto(`${base}?lang=${lang}&format=${format}`);
 await page.waitForFunction(() => window.FILM && window.FILM.ready, null, { timeout: 120000 });
 await page.evaluate(() => window.FILM.ready);
 const FRAMES = await page.evaluate(() => window.FILM.FRAMES);

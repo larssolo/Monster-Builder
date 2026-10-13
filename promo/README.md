@@ -1,15 +1,17 @@
 # Monster Builder — promo film (9:16)
 
-A 41-second vertical (1080×1920, 30 fps) presentation film for
+A 41-second presentation film for
 [monster-builder.larssohl.dk](https://monster-builder.larssohl.dk/), cut to a 70 BPM
-heartbeat. Everything is generated from this repo: the 3D monsters are the site's own
+heartbeat, in two formats from the same renderer: vertical **9:16** (1080×1920, Reels/TikTok/Shorts)
+and landscape **16:9** (1920×1080, YouTube/web/TV). Same timeline and soundtrack; the landscape cut
+re-lays out every shot with the text in a left column and the picture on the right. Everything is generated from this repo: the 3D monsters are the site's own
 `monster3d.js` renderer, the logo is `monster-builder-splash.png`, and the phone shots are
 real captures of the live site. Both picture and sound are rendered deterministically.
 
 | File | What it is |
 |:--|:--|
-| `out/` (git-ignored) | Rendered films: `monster-builder-promo-{en,da}.mp4` (master, ~9 Mbps) and `-social.mp4` (~5 Mbps) |
-| `film.html` / `film.js` | The film as a frame-by-frame canvas renderer |
+| `out/` (git-ignored) | Rendered films: `monster-builder-promo-{en,da}.mp4` (9:16) and `monster-builder-promo-16x9-{en,da}.mp4`, each as a master (~9 Mbps) and a `-social.mp4` copy (~5 Mbps) |
+| `film.html` / `film.js` | The film as a frame-by-frame canvas renderer (`?lang=en` or `da`, `?format=9x16` or `16x9`; per-format layout in the `LY` table) |
 | `m3d.js` | Loads isolated instances of `../monster3d.js` (no change to the site's code) |
 | `music.py` | Score + sound design, synthesized with numpy/scipy on the same beat grid |
 | `render.mjs` | Steps through the frames in headless Chromium and pipes them to ffmpeg |
@@ -28,7 +30,8 @@ real captures of the live site. Both picture and sound are rendered deterministi
 | 40–43 | The real site on a phone + No app · 100% private · Say "MONSTER!" | Breathing room, bells per feature |
 | 43–48 | Logo splat, *"Scan. Roar. Birth a monster."*, Play now, URL types in, fade | Impact + slime splat, resolution to D minor, typing, last heartbeat |
 
-Text keeps to the 9:16 safe area (roughly y 240–1640) so platform UI doesn't cover it.
+Text keeps to the 9:16 safe area (roughly y 240–1640) so platform UI doesn't cover it; in 16:9 it
+stays inside the 5 % title-safe frame (x 96–1824, y 54–1026).
 
 ## Re-render
 
@@ -40,7 +43,8 @@ python3 -m http.server 8765 --bind 127.0.0.1 &
 
 cd promo
 python3 music.py /tmp/score.wav
-node render.mjs --lang en --out /tmp/video_en.mp4          # ~1–2 s/frame with SwiftShader
+node render.mjs --lang en --out /tmp/video_en.mp4                     # 9:16, ~1–2 s/frame with SwiftShader
+node render.mjs --lang en --format 16x9 --out /tmp/video_en_169.mp4   # 16:9
 ffmpeg -i /tmp/video_en.mp4 -i /tmp/score.wav -c:v copy -c:a aac -b:a 256k -movflags +faststart -shortest out/monster-builder-promo-en.mp4
 
 # preview single frames
