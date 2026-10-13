@@ -25,18 +25,18 @@ const MW = LAND ? 1440 : 1080, MH = LAND ? 1080 : 1350;   // 3D monster render s
 // Per-format layout. Vertical keeps one centred column; landscape puts the text in a
 // left column (x = 150, inside the 16:9 title-safe area) and the picture on the right.
 const LY = LAND ? {
-  intro: { ex: 960, ey: 420, es: 0.9, l1y: 790, l2y: 905, size: 100 },
-  scan: { cx: 1270, cy: 555, fh: 660, box: { x: 890, y: 150, w: 760, h: 800 },
-    pill: [150, 250], head: [150, 362, 96], sub: [150, 432], left: true, hud: [150, 700, 640], tagL: 760, tagR: W - 140 },
-  roar: { countX: 560, shoutY: 500, numY: 830, readyY: 610, pivotY: 670, potX: 1350, potY: 820, S: 1.75, sc: [0.4, 0.66],
-    rays: [1350, 640], rings: [1350, 660, 700], bg: [1350, 640, 1400], wave: [1000, 1720, 995],
-    pill: [150, 170], head: [150, 282, 84], voice: [150, 352], left: true, eyes: [960, 540, 0.82], sparkY: [60, 960] },
-  reveal: { cx: 1200, cy: 560, pill: [150, 330], head: [150, 470, 112], head2: 590, sub: [150, 668], left: true },
-  roster: { cx: 1250, cy: 540, counter: [150, 650], name: [150, 800], clip: [0, 680, 1060, 170], nameMax: 680, size: 140, left: true },
-  grid: { cols: 6, tw: 320, th: 360, center: 8, snap: 290, t1: [960, 520], t2: [960, 650] },
+  intro: { ex: 960, ey: 395, es: 0.9, l1y: 735, l2y: 850, size: 100 },
+  scan: { cx: 1350, cy: 555, fh: 600, box: { x: 1010, y: 150, w: 680, h: 800 },
+    pill: [150, 170], head: [150, 292, 90], sub: [150, 352], left: true, hud: [150, 700, 640], tagL: 880, tagR: W - 140 },
+  roar: { countX: 590, shoutY: 500, numY: 830, readyY: 610, pivotY: 670, potX: 1350, potY: 730, S: 1.75, sc: [0.4, 0.66],
+    rays: [1350, 550], rings: [1350, 570, 700], bg: [1350, 550, 1400], wave: [1000, 1720, 940],
+    pill: [150, 170], head: [150, 292, 90], voice: [150, 346], left: true, eyes: [1270, 520, 0.82], sparkY: [60, 960] },
+  reveal: { cx: 1270, cy: 560, pill: [150, 330], head: [150, 470, 112], head2: 590, sub: [150, 668], left: true },
+  roster: { cx: 1340, cy: 540, counter: [150, 650], name: [150, 800], clip: [0, 680, 1060, 170], nameMax: 720, size: 112, left: true },
+  grid: { cols: 6, tw: 320, th: 372, center: 8, snap: 290, t1: [960, 520], t2: [960, 650] },
   phone: { cx: 1380, py: 545, pw: 420, ph: 894, rise: 700, chipX: 150, chipY: 420, chipDy: 120, left: true },
-  end: { cx: 960, cy: 345, lw: 700, spread: [1500, 760], fs: 240, drip: 120, tag: [700, 60], cta: [815, 480, 116, 56], url: [935, 36], foot: [995, 20] },
-  focus: [1250, 540], toGridScale: 0.3, cave: [200, 180], crystal: [1.6, 1.5]
+  end: { cx: 960, cy: 330, lw: 640, spread: [1500, 760], fs: 220, drip: 100, tag: [665, 60], cta: [775, 480, 116, 56], url: [893, 36], foot: [945, 22] },
+  focus: [1340, 540], toGridScale: 0.3, cave: [210, 190], crystal: [1.6, 1.5]
 } : {
   intro: { ex: 540, ey: 800, es: 1, l1y: 1190, l2y: 1312, size: 104 },
   scan: { cx: 540, cy: 880, fh: 690, box: { x: 150, y: 480, w: 780, h: 800 },
@@ -162,7 +162,7 @@ function revealText(g, str, x, y, o, p) {
       // blur on a small scratch canvas — a filter on the full frame is far too slow
       const pad = Math.ceil(bl * 3 + (glow ? (o.glowBlur ?? 30) : 0)) + 4;
       const cw = Math.ceil(g.measureText(chars[i]).width) + pad * 2, chh = Math.ceil(o.size * 1.5) + pad * 2;
-      const sc = g2d(CHAR); sc.clearRect(0, 0, cw, chh);
+      const sc = g2d(CHAR); sc.clearRect(0, 0, CHAR.width, CHAR.height);
       sc.save(); sc.font = g.font; sc.letterSpacing = "0px"; sc.textAlign = "left"; sc.textBaseline = "alphabetic";
       sc.filter = `blur(${bl.toFixed(1)}px)`; sc.fillStyle = col;
       if (glow) { sc.shadowColor = glow; sc.shadowBlur = o.glowBlur ?? 30; }
@@ -229,17 +229,24 @@ function buildCave() {
   g.shadowColor = "rgba(0,180,160,.22)"; g.shadowBlur = 44; g.shadowOffsetY = 18;
   let gr = g.createLinearGradient(0, 0, 0, sh);
   gr.addColorStop(0, "#000508"); gr.addColorStop(0.6, "#001018"); gr.addColorStop(1, "#000a10");
-  g.fillStyle = gr; g.beginPath();
-  stal.forEach(([px, py], i) => (i ? g.lineTo : g.moveTo).call(g, px / 100 * W, py / 100 * sh));
-  g.closePath(); g.fill();
+  const reps = LAND ? 2 : 1, tw = W / reps;   // landscape: repeat the pattern so the teeth keep their proportions
+  g.fillStyle = gr;
+  for (let r = 0; r < reps; r++) {
+    g.beginPath();
+    stal.forEach(([px, py], i) => (i ? g.lineTo : g.moveTo).call(g, r * tw + px / 100 * tw, py / 100 * sh));
+    g.closePath(); g.fill();
+  }
   // ground
   const grd = [[0, 100], [100, 100], [100, 44], [92, 70], [85, 40], [76, 64], [66, 36], [58, 60], [50, 32], [42, 58], [33, 38], [24, 66], [15, 40], [8, 70], [0, 46]];
   g.shadowColor = "rgba(0,200,180,.16)"; g.shadowBlur = 50; g.shadowOffsetY = -10;
   gr = g.createLinearGradient(0, H, 0, H - gh);
   gr.addColorStop(0, "#000508"); gr.addColorStop(1, "#001018");
-  g.fillStyle = gr; g.beginPath();
-  grd.forEach(([px, py], i) => (i ? g.lineTo : g.moveTo).call(g, px / 100 * W, H - gh + py / 100 * gh));
-  g.closePath(); g.fill();
+  g.fillStyle = gr;
+  for (let r = 0; r < reps; r++) {
+    g.beginPath();
+    grd.forEach(([px, py], i) => (i ? g.lineTo : g.moveTo).call(g, r * tw + px / 100 * tw, H - gh + py / 100 * gh));
+    g.closePath(); g.fill();
+  }
   g.restore();
   return c;
 }
@@ -295,7 +302,7 @@ function drawSpores(g, t, alpha, n = 46) {
 
 function drawCrystals(g, b, alpha) {
   const [ks, kb] = LY.crystal;
-  const list = [[0.06, 60 * kb, "#00d8c8", -10, 72], [0.13, 48 * kb, "#0090e0", 14, 46], [0.92, 64 * kb, "#8800ff", 9, 80], [0.85, 46 * kb, "#00c8e8", -8, 42]];
+  const list = [[0.06, 60 * kb, "#00d8c8", -10, 72], [0.13, 48 * kb, "#0090e0", 14, 46], [0.92, 64 * kb, "#8800ff", 9, 80], [LAND ? 0.875 : 0.85, 46 * kb, "#00c8e8", -8, 42]];
   g.save();
   list.forEach(([fx, bottom, col, rot, h], i) => {
     const hh = h * ks, ww = 26 * ks;
@@ -663,7 +670,7 @@ function drawBigNum(g, num, x, y, u, t) {
   const delays = [0, 0.55, 1.05, 0.3, 1.35], widths = [12, 9, 13, 8, 11];
   delays.forEach((d, i) => {
     const p = fr((t - d) / 1.9);
-    const ty = kf(p, [[0, 0], [0.22, 6], [0.7, 58], [1, 150]]) * 1.3;
+    const ty = kf(p, [[0, 0], [0.22, 6], [0.7, 58], [1, 150]]) * (LAND ? 0.8 : 1.3);
     const sy = kf(p, [[0, 0.4], [0.22, 1.5], [0.7, 2.3], [1, 1]]);
     const a = kf(p, [[0, 0], [0.22, 1], [0.7, 0.9], [1, 0]]);
     const dx = -110 + i * 55, w = widths[i] * 2, h = 13 * 2;
