@@ -16,11 +16,14 @@ import { loadInstance, makeDNA } from "./m3d.js";
 
 const Q = new URLSearchParams(location.search);
 const LANG = Q.get("lang") === "da" ? "da" : "en";
-const LAND = Q.get("format") === "16x9";  // landscape 1920×1080; default is vertical 1080×1920
+const LAND = Q.get("format") === "16x9";  // landscape 1920×1080
+const SQ = Q.get("format") === "1x1";     // square 1080×1080; default is vertical 1080×1920
 const FPS = 30, BPM = 70, BEAT = 60 / BPM, BEATS = 48;
-const W = LAND ? 1920 : 1080, H = LAND ? 1080 : 1920;
+const W = LAND ? 1920 : 1080, H = LAND ? 1080 : SQ ? 1080 : 1920;
 const FRAMES = Math.floor(BEATS * BEAT * FPS);
-const MW = LAND ? 1440 : 1080, MH = LAND ? 1080 : 1350;   // 3D monster render size
+// 3D monster render size. Square uses 1350×1350: the vertical fov then gives the same monster
+// pixel scale as the 9:16 cut, so the vertical layout's scale values carry over.
+const MW = LAND ? 1440 : SQ ? 1350 : 1080, MH = LAND ? 1080 : 1350;
 
 // Per-format layout. Vertical keeps one centred column; landscape puts the text in a
 // left column (x = 150, inside the 16:9 title-safe area) and the picture on the right.
@@ -30,13 +33,26 @@ const LY = LAND ? {
     pill: [150, 170], head: [150, 292, 90], sub: [150, 352], left: true, hud: [150, 700, 640], tagL: 880, tagR: W - 140 },
   roar: { countX: 590, shoutY: 500, numY: 830, readyY: 610, pivotY: 670, potX: 1350, potY: 730, S: 1.75, sc: [0.4, 0.66],
     rays: [1350, 550], rings: [1350, 570, 700], bg: [1350, 550, 1400], wave: [1000, 1720, 940],
-    pill: [150, 170], head: [150, 292, 90], voice: [150, 346], left: true, eyes: [1270, 520, 0.82], sparkY: [60, 960] },
+    pill: [150, 170], head: [150, 292, 90], voice: [150, 346], left: true, eyes: [1270, 520, 0.82], sparkY: [60, 960], dripK: 0.8 },
   reveal: { cx: 1270, cy: 560, pill: [150, 330], head: [150, 470, 112], head2: 590, sub: [150, 668], left: true },
   roster: { cx: 1340, cy: 540, counter: [150, 650], name: [150, 800], clip: [0, 680, 1060, 170], nameMax: 720, size: 112, left: true },
   grid: { cols: 6, tw: 320, th: 372, center: 8, snap: 290, t1: [960, 520], t2: [960, 650] },
   phone: { cx: 1380, py: 545, pw: 420, ph: 894, rise: 700, chipX: 150, chipY: 420, chipDy: 120, left: true },
   end: { cx: 960, cy: 330, lw: 640, spread: [1500, 760], fs: 220, drip: 100, tag: [665, 60], cta: [775, 480, 116, 56], url: [893, 36], foot: [945, 22] },
   focus: [1340, 540], toGridScale: 0.3, cave: [210, 190], crystal: [1.6, 1.5]
+} : SQ ? {
+  intro: { ex: 540, ey: 380, es: 0.8, l1y: 690, l2y: 790, size: 88 },
+  scan: { cx: 540, cy: 590, fh: 380, box: { x: 330, y: 340, w: 420, h: 500 },
+    pill: [540, 110], head: [540, 215, 84], sub: [540, 262], left: false, hud: [200, 880, 900], tagL: 70, tagR: W - 70, tagK: 0.6 },
+  roar: { countX: 540, shoutY: 420, numY: 760, readyY: 420, pivotY: 540, potX: 540, potY: 800, S: 1.7, sc: [0.34, 0.58],
+    rays: [540, 540], rings: [540, 540, 560], bg: [540, 540, 900], wave: [110, 970, 1032], waveAmp: 0.35,
+    pill: [540, 110], head: [540, 215, 84], voice: [540, 262, "center"], left: false, eyes: [540, 540, 0.8], sparkY: [120, 1000], dripK: 0.8 },
+  reveal: { cx: 540, cy: 655, pill: [540, 110], head: [540, 215, 84], head2: null, sub: [540, 262], left: false },
+  roster: { cx: 540, cy: 420, counter: [540, 860], name: [540, 968], clip: [0, 830, W, 230], nameMax: 960, size: 96, left: false, zk: 1.15 },
+  grid: { cols: 6, tw: 180, th: 180, oy: 90, snapY: -98, labY: 78, labS: 14, center: 8, snap: 160, t1: [540, 770], t2: [540, 866], s1: 110, s2: 56 },
+  phone: { cx: 540, py: 730, pw: 280, ph: 600, rise: 600, chipX: 540, chipY: 150, chipDy: 100, fs: 34, left: false },
+  end: { cx: 540, cy: 360, lw: 600, spread: [1000, 900], fs: 290, drip: 110, tag: [660, 44], cta: [760, 400, 104, 44], url: [860, 34], foot: [930, 18] },
+  focus: [540, 430], toGridScale: 0.25, cave: [260, 250], crystal: [1.9, 1.8]
 } : {
   intro: { ex: 540, ey: 800, es: 1, l1y: 1190, l2y: 1312, size: 104 },
   scan: { cx: 540, cy: 880, fh: 690, box: { x: 150, y: 480, w: 780, h: 800 },
@@ -195,6 +211,10 @@ function pill(g, str, cx, cy, alpha = 1, o = {}) {
   g.restore();
 }
 
+function monoWidth(g, str, o = {}) {
+  g.save(); font(g, o.size ?? 26, o.weight ?? 700, "Space Mono"); g.letterSpacing = (o.ls ?? 4) + "px";
+  const w = g.measureText(str).width; g.restore(); return w;
+}
 function monoText(g, str, x, y, o = {}) {
   g.save();
   font(g, o.size ?? 26, o.weight ?? 700, "Space Mono");
@@ -252,7 +272,7 @@ function buildCave() {
 }
 function buildVignette() {
   const c = mk(W, H), g = g2d(c);
-  g.save(); g.translate(W / 2, H / 2); g.scale(LAND ? W * 0.8 : W * 0.95, LAND ? H * 0.98 : H * 0.78);
+  g.save(); g.translate(W / 2, H / 2); g.scale(LAND ? W * 0.8 : W * 0.95, LAND ? H * 0.98 : SQ ? H * 0.9 : H * 0.78);
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
   gr.addColorStop(0.45, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,.72)");
   g.fillStyle = gr; g.fillRect(-1.5, -1.5, 3, 3); g.restore();
@@ -387,10 +407,10 @@ const ARCH = ["blob", "multihead", "octopus", "beast", "fish", "bird", "worm", "
 // grid order: the last roster monster (beast) sits in the middle tile it shrinks into
 const GRID_V = ["bird", "dragon", "fish", "alien", "multihead", "crab", "worm", "beast", "snake", "jelly", "eyeball", "virus", "scorpion", "blob", "bacteria", "dino", "cell", "octopus"];
 // landscape: same set, beast swapped one tile right so it lands nearer the middle of the 6×3 grid
-const GRID = LAND ? GRID_V.map((t, i) => (i === 7 ? "snake" : i === 8 ? "beast" : t)) : GRID_V;
+const GRID = LY.grid.cols === 6 ? GRID_V.map((t, i) => (i === 7 ? "snake" : i === 8 ? "beast" : t)) : GRID_V;
 const tileHue = (type) => (GRID_V.indexOf(type) * 47 + 120) % 360;   // colour follows the creature, not the slot
 const GRID_CENTER = LY.grid.center;
-const gridTile = (i) => ({ x: (i % LY.grid.cols) * LY.grid.tw, y: Math.floor(i / LY.grid.cols) * LY.grid.th, w: LY.grid.tw, h: LY.grid.th });
+const gridTile = (i) => ({ x: (i % LY.grid.cols) * LY.grid.tw, y: Math.floor(i / LY.grid.cols) * LY.grid.th + (LY.grid.oy ?? 0), w: LY.grid.tw, h: LY.grid.th });
 const GRID_RANK = (() => {
   const c = gridTile(GRID_CENTER);
   const d = GRID.map((_, i) => { const r = gridTile(i); return [Math.hypot(r.x - c.x, (r.y - c.y) * 1.1), i]; });
@@ -556,7 +576,7 @@ function shotScan(g, b, t) {
     const p = seg(b, tg.at, tg.at + 0.45), fade = 1 - smooth(seg(b, 14.7, 15.05));
     if (p <= 0 || fade <= 0) continue;
     const px = X[tg.i], py = Y[tg.i], left = tg.left;
-    const lx = left ? L.tagL : L.tagR, ly = py + tg.dy;
+    const lx = left ? L.tagL : L.tagR, ly = py + tg.dy * (L.tagK ?? 1);
     const e = outCubic(p);
     g.save(); g.globalAlpha = fade;
     g.strokeStyle = "rgba(120,255,220,.8)"; g.lineWidth = 2;
@@ -670,7 +690,7 @@ function drawBigNum(g, num, x, y, u, t) {
   const delays = [0, 0.55, 1.05, 0.3, 1.35], widths = [12, 9, 13, 8, 11];
   delays.forEach((d, i) => {
     const p = fr((t - d) / 1.9);
-    const ty = kf(p, [[0, 0], [0.22, 6], [0.7, 58], [1, 150]]) * (LAND ? 0.8 : 1.3);
+    const ty = kf(p, [[0, 0], [0.22, 6], [0.7, 58], [1, 150]]) * (LY.roar.dripK ?? 1.3);
     const sy = kf(p, [[0, 0.4], [0.22, 1.5], [0.7, 2.3], [1, 1]]);
     const a = kf(p, [[0, 0], [0.22, 1], [0.7, 0.9], [1, 0]]);
     const dx = -110 + i * 55, w = widths[i] * 2, h = 13 * 2;
@@ -793,7 +813,7 @@ function shotRoar(g, b, t) {
       g.beginPath();
       for (let i = 0; i <= 220; i++) {
         const u = i / 220, x = wx0 + u * (wx1 - wx0);
-        const amp = (10 + 120 * lvl) * Math.sin(Math.PI * u) ** 1.5;
+        const amp = (10 + 120 * lvl) * Math.sin(Math.PI * u) ** 1.5 * (R.waveAmp ?? 1);
         const v = Math.sin(u * 46 + t * 17) * 0.55 + Math.sin(u * 113 - t * 23) * 0.3 + (hash(i * 1.7 + Math.floor(t * 30)) - 0.5) * 0.5;
         const y = wy + v * amp * mir;
         i ? g.lineTo(x, y) : g.moveTo(x, y);
@@ -802,7 +822,13 @@ function shotRoar(g, b, t) {
     }
     g.restore();
     const rec = fr(t / 0.9) < 0.6 ? 1 : 0.25;
-    const [dotX, dotY, tx, ty, tal] = R.voice ? [R.voice[0] + 9, R.voice[1] - 9, R.voice[0] + 32, R.voice[1], "left"] : [cx - 230, 1612, cx + 12, 1622, "center"];
+    let dotX = cx - 230, dotY = 1612, tx = cx + 12, ty = 1622, tal = "center";
+    if (R.voice && R.voice[2] === "center") {                 // centred caption: dot sits left of the measured text
+      const w = monoWidth(g, T.voice, { size: 24, ls: 5 });
+      dotX = R.voice[0] - w / 2 - 22; dotY = R.voice[1] - 9; tx = R.voice[0]; ty = R.voice[1];
+    } else if (R.voice) {
+      dotX = R.voice[0] + 9; dotY = R.voice[1] - 9; tx = R.voice[0] + 32; ty = R.voice[1]; tal = "left";
+    }
     g.save(); g.globalAlpha = wa * rec; g.fillStyle = "#ff2e4a"; g.shadowColor = "#ff2e4a"; g.shadowBlur = 12;
     g.beginPath(); g.arc(dotX, dotY, 9, 0, Math.PI * 2); g.fill(); g.restore();
     monoText(g, T.voice, tx, ty, { size: 24, ls: 5, align: tal, alpha: wa * 0.85 });
@@ -929,7 +955,7 @@ function shotRoster(g, b, t, i) {
   drawSpores(g, t + i * 5, 0.5, 20);
   const prog = 0.5 + 0.5 * seg(b, start - 0.15, start + 0.5);
   const lb = b - start;
-  renderMonster(inst, r.dna, t, prog, { x: Math.sin(lb * 0.9 + i) * 1.1, y: 0.4, z: r.z - 0.25 * lb, ly: r.ly });
+  renderMonster(inst, r.dna, t, prog, { x: Math.sin(lb * 0.9 + i) * 1.1, y: 0.4, z: (r.z - 0.25 * lb) * (RL.zk ?? 1), ly: r.ly });
   g.drawImage(canv, cx - MW / 2, cy - MH / 2);
   // labels
   const e = outCubic(seg(b, start - 0.05, start + 0.35));
@@ -967,9 +993,9 @@ function shotGrid(g, b, t, hideCenter) {
     g.fillStyle = tg; g.fill(); g.strokeStyle = "rgba(255,255,255,.07)"; g.lineWidth = 2; g.stroke();
     const br = 1 + Math.sin(t * 3 + i) * 0.02, sn = LY.grid.snap;
     g.save(); g.clip();
-    g.drawImage(SNAP[type], -sn / 2, -tl.h / 2 + 1, sn, sn * br);
+    g.drawImage(SNAP[type], -sn / 2, LY.grid.snapY ?? (-tl.h / 2 + 1), sn, sn * br);
     g.restore();
-    monoText(g, T.names[type], 0, tl.h / 2 - 22, { size: 17, ls: 3, alpha: 0.55, color: "#cfe" });
+    monoText(g, T.names[type], 0, LY.grid.labY ?? (tl.h / 2 - 22), { size: LY.grid.labS ?? 17, ls: 3, alpha: 0.55, color: "#cfe" });
     g.restore();
   });
   g.restore();
@@ -977,8 +1003,8 @@ function shotGrid(g, b, t, hideCenter) {
   if (dim > 0) {
     g.fillStyle = `rgba(0,4,8,${0.62 * dim})`; g.fillRect(0, 0, W, H);
     const k = [...T.g1];
-    revealText(g, T.g1, LY.grid.t1[0], LY.grid.t1[1], { size: 150, weight: 700, glow: "rgba(0,0,0,.6)", glowBlur: 40 }, seg(b, 38.2, 38.95));
-    revealText(g, T.g2, LY.grid.t2[0], LY.grid.t2[1], { size: 70, color: SLIME, glow: "rgba(125,255,60,.55)" }, seg(b, 38.7, 39.5));
+    revealText(g, T.g1, LY.grid.t1[0], LY.grid.t1[1], { size: LY.grid.s1 ?? 150, weight: 700, glow: "rgba(0,0,0,.6)", glowBlur: 40 }, seg(b, 38.2, 38.95));
+    revealText(g, T.g2, LY.grid.t2[0], LY.grid.t2[1], { size: LY.grid.s2 ?? 70, color: SLIME, glow: "rgba(125,255,60,.55)" }, seg(b, 38.7, 39.5));
   }
 }
 
@@ -1021,7 +1047,7 @@ function shotPhone(g, b, t) {
     const p = outCubic(seg(b, at, at + 0.45));
     if (p <= 0) return;
     const y = PL.chipY + i * PL.chipDy, dir = PL.left ? -1 : i % 2 ? 1 : -1;
-    font(g, 44, 600); g.letterSpacing = "0px";
+    font(g, PL.fs ?? 44, 600); g.letterSpacing = "0px";
     const tw = g.measureText(txt).width, w = tw + 136, h = 90;
     g.save(); g.globalAlpha = p; g.translate((PL.left ? PL.chipX + w / 2 : PL.chipX) + dir * (1 - p) * 120, y);
     rrect(g, -w / 2, -h / 2, w, h, h / 2);
@@ -1291,7 +1317,7 @@ async function boot() {
 }
 
 window.FILM = {
-  FPS, FRAMES, W, H, LANG, FORMAT: LAND ? "16x9" : "9x16",
+  FPS, FRAMES, W, H, LANG, FORMAT: LAND ? "16x9" : SQ ? "1x1" : "9x16",
   ready: boot().then(() => true),
   render(f) { renderFrame(f); },
   async frameJPEG(f, q = 0.95) { renderFrame(f); return out.toDataURL("image/jpeg", q); }
