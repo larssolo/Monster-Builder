@@ -3,15 +3,15 @@
 A 41-second presentation film for
 [monster-builder.larssohl.dk](https://monster-builder.larssohl.dk/), cut to a 70 BPM
 heartbeat, in two formats from the same renderer: vertical **9:16** (1080×1920, Reels/TikTok/Shorts)
-and landscape **16:9** (1920×1080, YouTube/web/TV). Same timeline and soundtrack; the landscape cut
+landscape **16:9** (1920×1080, YouTube/web/TV) and square **1:1** (1080×1080, feed posts). Same timeline and soundtrack; the landscape cut
 re-lays out every shot with the text in a left column and the picture on the right. Everything is generated from this repo: the 3D monsters are the site's own
 `monster3d.js` renderer, the logo is `monster-builder-splash.png`, and the phone shots are
 real captures of the live site. Both picture and sound are rendered deterministically.
 
 | File | What it is |
 |:--|:--|
-| `out/` (git-ignored) | Rendered films: `monster-builder-promo-{en,da}.mp4` (9:16) and `monster-builder-promo-16x9-{en,da}.mp4`, each as a master (~9 Mbps) and a `-social.mp4` copy (~5 Mbps) |
-| `film.html` / `film.js` | The film as a frame-by-frame canvas renderer (`?lang=en` or `da`, `?format=9x16` or `16x9`; per-format layout in the `LY` table) |
+| `out/` (git-ignored) | Rendered films: `monster-builder-promo-{en,da}.mp4` (9:16) and `monster-builder-promo-16x9-{en,da}.mp4`, `monster-builder-promo-1x1-en.mp4`, each as a master (~9 Mbps) and a `-social.mp4` copy (~5 Mbps) |
+| `film.html` / `film.js` | The film as a frame-by-frame canvas renderer (`?lang=en` or `da`, `?format=9x16`, `16x9` or `1x1`; per-format layout in the `LY` table) |
 | `m3d.js` | Loads isolated instances of `../monster3d.js` (no change to the site's code) |
 | `music.py` | Score + sound design, synthesized with numpy/scipy on the same beat grid |
 | `render.mjs` | Steps through the frames in headless Chromium and pipes them to ffmpeg |
