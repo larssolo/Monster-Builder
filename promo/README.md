@@ -1,4 +1,4 @@
-# Monster Builder — promo film (9:16)
+# Monster Builder — promo film (9:16 + 16:9)
 
 A 41-second presentation film for
 [monster-builder.larssohl.dk](https://monster-builder.larssohl.dk/), cut to a 70 BPM
