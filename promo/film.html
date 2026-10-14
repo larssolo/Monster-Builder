@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Monster Builder — promo film</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Kablammo&family=Space+Mono:wght@400;700&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; }
+  #out { width: 1080px; height: 1920px; }
+</style>
+</head>
+<body>
+<!-- slime "goo" filter (same trick as the site's splash: blur + alpha threshold) -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="goo" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14"/>
+      <feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -11"/>
+    </filter>
+  </defs>
+</svg>
+<canvas id="out" width="1080" height="1920"></canvas>
+<script type="module" src="film.js"></script>
+</body>
+</html>
